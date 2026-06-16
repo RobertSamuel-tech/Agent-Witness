@@ -30,7 +30,7 @@
 [![Aurora PostgreSQL](https://img.shields.io/badge/Aurora-PostgreSQL%2018-FF9900?style=flat-square&logo=amazon-aws&logoColor=white)](https://aws.amazon.com/rds/aurora/)
 [![pgvector](https://img.shields.io/badge/pgvector-HNSW-4285F4?style=flat-square&logo=postgresql&logoColor=white)](https://github.com/pgvector/pgvector)
 [![Multi-tenant](https://img.shields.io/badge/Multi--tenant-RLS%20Enforced-6366f1?style=flat-square)](https://www.postgresql.org/docs/current/ddl-rowsecurity.html)
-[![License](https://img.shields.io/badge/license-Proprietary-ef4444?style=flat-square)](./LICENSE)
+[![License](https://img.shields.io/badge/license-Apache%202.0-22c55e?style=flat-square)](./LICENSE)
 [![SOC 2](https://img.shields.io/badge/SOC%202-Type%20II%20Pending-f59e0b?style=flat-square)](https://www.aicpa.org/soc2)
 
 <br/>
@@ -741,21 +741,27 @@ Aurora PostgreSQL 18 ships with native `pg_logical` replication, improved parall
 
 ---
 
-## Contributing
-
-AgentWitness is a proprietary enterprise platform. Contribution guidelines for design partners and integration partners are available upon request.
-
-For security disclosures: **security@agentwitness.io**
-
-For partnership and integration inquiries: **partnerships@agentwitness.io**
-
----
-
 ## License
 
-Copyright © 2026 AgentWitness, Inc. All rights reserved.
+Licensed under the **Apache License, Version 2.0**.
 
-This software is proprietary and confidential. Unauthorized copying, distribution, or modification is strictly prohibited. For licensing inquiries, contact **legal@agentwitness.io**.
+You may use, reproduce, distribute, and create derivative works of this software under the terms of the Apache 2.0 License. See the [`LICENSE`](./LICENSE) file for the full license text.
+
+```
+Copyright 2026 AgentWitness
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+```
 
 ---
 
