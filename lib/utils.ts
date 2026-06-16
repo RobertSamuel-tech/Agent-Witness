@@ -31,10 +31,10 @@ export function formatRelativeTime(isoDate: string): string {
 export function policyResultBadgeClass(result: PolicyResult): string {
   switch (result) {
     case "allowed":
-      return "border-green-800 bg-green-950/50 text-green-400"
+      return "border-success/30 bg-success/10 text-success"
     case "flagged":
-      return "border-yellow-800 bg-yellow-950/50 text-yellow-400"
+      return "border-warning/30 bg-warning/10 text-warning"
     case "blocked":
-      return "border-red-800 bg-red-950/50 text-red-400"
+      return "border-destructive/30 bg-destructive/10 text-destructive"
   }
 }

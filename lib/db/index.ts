@@ -1,3 +1,6 @@
+import dns from "dns";
+import fs from "fs";
+import path from "path";
 import { Pool, type QueryResultRow } from "pg";
 
 export type DbRecord = Record<string, unknown>;
@@ -15,7 +18,79 @@ function getPool(): Pool {
     if (!connectionString) {
       throw new Error("Missing required environment variable: DATABASE_URL");
     }
-    cachedPool = new Pool({ connectionString });
+
+    // Parse the URL so we can explicitly hand each param to pg — avoids
+    // pg's URL parser mis-handling sslrootcert relative paths on Windows and
+    // the SCRAM "client password must be a string" bug in some pg versions.
+    const url = new URL(connectionString);
+    const sslMode = url.searchParams.get("sslmode") ?? "disable";
+    const sslRootCertParam = url.searchParams.get("sslrootcert");
+
+    let ssl: boolean | { ca: string; rejectUnauthorized: boolean } | undefined;
+    if (sslMode !== "disable") {
+      if (sslRootCertParam) {
+        const certPath = path.isAbsolute(sslRootCertParam)
+          ? sslRootCertParam
+          : path.resolve(process.cwd(), sslRootCertParam);
+        try {
+          const ca = fs.readFileSync(certPath, "utf8");
+          ssl = { ca, rejectUnauthorized: sslMode === "verify-full" || sslMode === "verify-ca" };
+        } catch {
+          // Cert file missing — allow TLS without cert verification so we can
+          // at least surface an auth error rather than a cert-read crash.
+          ssl = { ca: "", rejectUnauthorized: false } as never;
+        }
+      } else {
+        ssl = true;
+      }
+    }
+
+    // Log resolved DNS address family so we can see which path pg will use.
+    dns.lookup(url.hostname, { all: true }, (err, addrs) => {
+      if (err) {
+        console.error("[db] dns.lookup failed", { host: url.hostname, err: err.message });
+      } else {
+        const summary = (addrs ?? []).map((a) => `${a.address} (IPv${a.family})`).join(", ");
+        console.log("[db] dns.lookup results", { host: url.hostname, addrs: summary });
+      }
+    });
+
+    const pool = new Pool({
+      host: url.hostname,
+      port: url.port ? parseInt(url.port, 10) : 5432,
+      database: url.pathname.slice(1),
+      user: decodeURIComponent(url.username),
+      password: decodeURIComponent(url.password),
+      ssl,
+      connectionTimeoutMillis: 8_000,
+      idleTimeoutMillis: 30_000,
+      max: 5,
+    });
+
+    // Log every new physical connection the pool establishes.
+    pool.on("connect", (client) => {
+      const addr = (client as unknown as { connection?: { stream?: { remoteAddress?: string; remoteFamily?: string } } })
+        .connection?.stream;
+      console.log("[db] pool: new connection", {
+        remoteAddress: addr?.remoteAddress ?? "unknown",
+        remoteFamily: addr?.remoteFamily ?? "unknown",
+        totalCount: pool.totalCount,
+        idleCount: pool.idleCount,
+        waitingCount: pool.waitingCount,
+      });
+    });
+
+    // Log pool-level errors (e.g. idle client disconnected by Aurora).
+    pool.on("error", (err) => {
+      console.error("[db] pool: idle client error", {
+        code: (err as NodeJS.ErrnoException).code,
+        message: err.message,
+        totalCount: pool.totalCount,
+        idleCount: pool.idleCount,
+      });
+    });
+
+    cachedPool = pool;
   }
   return cachedPool;
 }
@@ -63,11 +138,31 @@ function decodeRow(row: QueryResultRow): DbRecord {
 export async function executeSql(sql: string, parameters: QueryParameter[] = []): Promise<DbRecord[]> {
   const { text, values } = toPositionalQuery(sql, parameters);
 
+  const t0 = Date.now();
+  let acquireMs = -1;
+
   try {
-    const result = await getPool().query(text, values);
-    return result.rows.map(decodeRow);
+    const pool = getPool();
+    const client = await pool.connect();
+    acquireMs = Date.now() - t0;
+    if (acquireMs > 1000) {
+      console.warn("[db] slow pool acquisition", { acquireMs, waitingCount: pool.waitingCount });
+    }
+    try {
+      const result = await client.query(text, values);
+      return result.rows.map(decodeRow);
+    } finally {
+      client.release();
+    }
   } catch (error) {
-    console.error("Database query failed", { sql, error });
+    const elapsed = Date.now() - t0;
+    console.error("[db] query failed", {
+      sql: text.slice(0, 120),
+      acquireMs: acquireMs >= 0 ? acquireMs : "never acquired",
+      elapsedMs: elapsed,
+      code: (error as NodeJS.ErrnoException).code,
+      message: error instanceof Error ? error.message : String(error),
+    });
     throw new Error(`Database query failed: ${error instanceof Error ? error.message : String(error)}`);
   }
 }

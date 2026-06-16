@@ -107,11 +107,11 @@ function PolicyCard({
   onDeleteRequest: (policy: Policy) => void;
 }) {
   return (
-    <Card className="border-slate-800 bg-slate-900">
+    <Card className="border-border bg-card">
       <CardHeader className="flex flex-row items-center justify-between">
         <div className="flex items-center gap-2">
-          <RuleTypeIcon ruleType={policy.rule_type} className="h-4 w-4 text-slate-400" />
-          <Badge variant="outline" className="border-slate-700 text-slate-300">
+          <RuleTypeIcon ruleType={policy.rule_type} className="h-4 w-4 text-muted-foreground" />
+          <Badge variant="outline" className="border-border text-muted-foreground">
             {RULE_TYPE_LABELS[policy.rule_type]}
           </Badge>
         </div>
@@ -125,7 +125,7 @@ function PolicyCard({
         </Button>
       </CardHeader>
       <CardContent className="space-y-3">
-        <pre className="overflow-x-auto rounded bg-slate-950 p-3 font-mono text-xs text-slate-300">
+        <pre className="overflow-x-auto rounded bg-background p-3 font-mono text-xs text-muted-foreground">
           {JSON.stringify(policy.rule_config, null, 2)}
         </pre>
         <div className="flex items-center justify-between">
@@ -134,9 +134,9 @@ function PolicyCard({
               checked={policy.is_active}
               onCheckedChange={(checked) => onToggle(policy, checked)}
             />
-            <span className="text-sm text-slate-300">{policy.is_active ? "Active" : "Inactive"}</span>
+            <span className="text-sm text-muted-foreground">{policy.is_active ? "Active" : "Inactive"}</span>
           </div>
-          <span className="text-xs text-slate-500">Created {formatRelativeTime(policy.created_at)}</span>
+          <span className="text-xs text-muted-foreground">Created {formatRelativeTime(policy.created_at)}</span>
         </div>
       </CardContent>
     </Card>
@@ -208,7 +208,7 @@ function NewPolicyDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-lg border-slate-800 bg-slate-900 text-slate-50">
+      <DialogContent className="max-w-lg border-border bg-card text-foreground">
         <DialogHeader>
           <DialogTitle>Create Policy</DialogTitle>
         </DialogHeader>
@@ -222,10 +222,10 @@ function NewPolicyDialog({
                 if (value) setRuleType(value as PolicyRuleType);
               }}
             >
-              <SelectTrigger id="rule-type" className="w-full border-slate-700 bg-slate-800 text-slate-200">
+              <SelectTrigger id="rule-type" className="w-full border-border bg-secondary text-foreground">
                 <SelectValue placeholder="Select a rule type" />
               </SelectTrigger>
-              <SelectContent className="border-slate-700 bg-slate-800 text-slate-200">
+              <SelectContent className="border-border bg-secondary text-foreground">
                 {RULE_TYPE_OPTIONS.map((option) => (
                   <SelectItem key={option} value={option}>
                     {RULE_TYPE_LABELS[option]}
@@ -246,7 +246,7 @@ function NewPolicyDialog({
                 value={maxCost}
                 onChange={(event) => setMaxCost(event.target.value)}
                 placeholder="0.50"
-                className="border-slate-700 bg-slate-800 text-slate-200"
+                className="border-border bg-secondary text-foreground"
               />
             </div>
           ) : null}
@@ -270,7 +270,7 @@ function NewPolicyDialog({
                 value={blockedDomains}
                 onChange={(event) => setBlockedDomains(event.target.value)}
                 placeholder="example.com, competitor.io"
-                className="border-slate-700 bg-slate-800 text-slate-200"
+                className="border-border bg-secondary text-foreground"
               />
             </div>
           ) : null}
@@ -289,7 +289,7 @@ function NewPolicyDialog({
           <Button
             variant="outline"
             onClick={() => handleOpenChange(false)}
-            className="border-slate-700 text-slate-200 hover:bg-slate-800"
+            className="border-border text-foreground hover:bg-secondary"
           >
             Cancel
           </Button>
@@ -314,11 +314,11 @@ function DeleteConfirmDialog({
 }) {
   return (
     <Dialog open={policy !== null} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md border-slate-800 bg-slate-900 text-slate-50">
+      <DialogContent className="max-w-md border-border bg-card text-foreground">
         <DialogHeader>
           <DialogTitle>Delete policy?</DialogTitle>
         </DialogHeader>
-        <p className="text-sm text-slate-400">
+        <p className="text-sm text-muted-foreground">
           {policy
             ? `Delete ${RULE_TYPE_LABELS[policy.rule_type]} policy? This cannot be undone.`
             : null}
@@ -327,7 +327,7 @@ function DeleteConfirmDialog({
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
-            className="border-slate-700 text-slate-200 hover:bg-slate-800"
+            className="border-border text-foreground hover:bg-secondary"
           >
             Cancel
           </Button>
@@ -381,10 +381,10 @@ function PolicySimulationCard({ tenantId, policies }: { tenantId: string | null;
   const matchedPolicy = policies.find((policy) => policy.id === result?.matchedPolicyId);
 
   return (
-    <Card className="border-slate-800 bg-slate-900">
+    <Card className="border-border bg-card">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base font-semibold text-slate-50">
-          <Zap className="h-4 w-4 text-blue-400" />
+        <CardTitle className="flex items-center gap-2 text-base font-semibold text-foreground">
+          <Zap className="h-4 w-4 text-chart-1" />
           Policy Simulation
         </CardTitle>
       </CardHeader>
@@ -393,7 +393,7 @@ function PolicySimulationCard({ tenantId, policies }: { tenantId: string | null;
           value={input}
           onChange={(event) => setInput(event.target.value)}
           placeholder="Test an action summary... e.g., 'Agent exported 500 user records to CSV'"
-          className="border-slate-700 bg-slate-800 text-slate-200"
+          className="border-border bg-secondary text-foreground"
         />
         <Button onClick={handleSimulate} disabled={simulating || input.trim() === "" || !tenantId}>
           {simulating ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
@@ -401,15 +401,15 @@ function PolicySimulationCard({ tenantId, policies }: { tenantId: string | null;
         </Button>
 
         {result ? (
-          <div className="space-y-2 rounded-md border border-slate-800 bg-slate-950 p-4">
+          <div className="space-y-2 rounded-md border border-border bg-background p-4">
             <Badge variant="outline" className={policyResultBadgeClass(result.result)}>
               {result.result}
             </Badge>
             {result.result !== "allowed" ? (
-              <div className="space-y-1 text-sm text-slate-400">
+              <div className="space-y-1 text-sm text-muted-foreground">
                 {matchedPolicy ? (
                   <p>
-                    Matched policy: <span className="text-slate-200">{RULE_TYPE_LABELS[matchedPolicy.rule_type]}</span>
+                    Matched policy: <span className="text-foreground">{RULE_TYPE_LABELS[matchedPolicy.rule_type]}</span>
                   </p>
                 ) : null}
                 {result.reason ? <p>{result.reason}</p> : null}
@@ -546,8 +546,8 @@ export default function PoliciesPage() {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-50">Policy Engine</h1>
-          <p className="mt-1 text-sm text-slate-400">Real-time governance rules</p>
+          <h1 className="text-2xl font-bold text-foreground">Policy Engine</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Real-time governance rules</p>
         </div>
         <Button onClick={() => setDialogOpen(true)} disabled={!selectedTenantId}>
           <Plus className="h-4 w-4" />
@@ -558,13 +558,13 @@ export default function PoliciesPage() {
       {isLoading ? (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: SKELETON_CARD_COUNT }).map((_, index) => (
-            <Skeleton key={index} className="h-48 rounded-xl bg-slate-800" />
+            <Skeleton key={index} className="h-48 rounded-xl bg-muted" />
           ))}
         </div>
       ) : hasError ? (
-        <Card className="border-red-900/50 bg-slate-900">
+        <Card className="border-destructive/30 bg-card">
           <CardContent className="flex flex-col items-start gap-3 p-6">
-            <div className="flex items-center gap-2 text-red-400">
+            <div className="flex items-center gap-2 text-destructive">
               <AlertTriangle className="h-4 w-4" />
               <p className="text-sm">{truncateMessage(hasError)}</p>
             </div>
@@ -575,18 +575,18 @@ export default function PoliciesPage() {
                 refetchTenants();
                 setRefreshIndex((index) => index + 1);
               }}
-              className="border-slate-700 text-slate-200 hover:bg-slate-800"
+              className="border-border text-foreground hover:bg-secondary"
             >
               Retry
             </Button>
           </CardContent>
         </Card>
       ) : visiblePolicies.length === 0 ? (
-        <Card className="border-slate-800 bg-slate-900">
+        <Card className="border-border bg-card">
           <CardContent className="flex flex-col items-center gap-2 p-12 text-center">
-            <Shield className="h-12 w-12 text-slate-600" />
-            <h2 className="text-lg font-semibold text-slate-50">No policies configured.</h2>
-            <p className="max-w-md text-sm text-slate-400">
+            <Shield className="h-12 w-12 text-muted-foreground" />
+            <h2 className="text-lg font-semibold text-foreground">No policies configured.</h2>
+            <p className="max-w-md text-sm text-muted-foreground">
               Create a policy to govern agent actions in real-time.
             </p>
             <Button onClick={() => setDialogOpen(true)} disabled={!selectedTenantId} className="mt-2">

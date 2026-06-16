@@ -43,12 +43,12 @@ function formatTime(isoDate: string): string {
 
 function severityBadgeClass(severity: ThreatSeverity): string {
   return severity === "CRITICAL"
-    ? "border-red-800 bg-red-950/50 text-red-400"
-    : "border-yellow-800 bg-yellow-950/50 text-yellow-400";
+    ? "border-destructive/30 bg-destructive/10 text-destructive"
+    : "border-warning/30 bg-warning/10 text-warning";
 }
 
 function severityDotClass(severity: ThreatSeverity): string {
-  return severity === "CRITICAL" ? "bg-red-500" : "bg-yellow-500";
+  return severity === "CRITICAL" ? "bg-destructive" : "bg-warning";
 }
 
 function MetricCard({
@@ -63,9 +63,9 @@ function MetricCard({
   accentClass: string;
 }) {
   return (
-    <Card className="border-slate-800 bg-slate-900">
+    <Card className="border-border bg-card">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-sm font-medium text-slate-400">{title}</CardTitle>
+        <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
         <Icon className={cn("h-4 w-4", accentClass)} />
       </CardHeader>
       <CardContent>
@@ -90,34 +90,34 @@ function IncidentCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: Math.min(index, 8) * 0.05 }}
     >
-      <Card className="border-slate-800 bg-slate-900">
+      <Card className="border-border bg-card">
         <CardContent className="p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <Badge variant="outline" className={severityBadgeClass(incident.severity)}>
                 {incident.severity}
               </Badge>
-              <span className="text-sm font-semibold text-slate-200">{incident.agentName}</span>
-              <Badge variant="outline" className="border-slate-700 text-xs text-slate-300">
+              <span className="text-sm font-semibold text-foreground">{incident.agentName}</span>
+              <Badge variant="outline" className="border-border text-xs text-muted-foreground">
                 {incident.actionType.replace(/_/g, " ")}
               </Badge>
             </div>
             <div className="flex items-center gap-3">
-              <span className="font-mono text-xs text-slate-500">{formatRelativeTime(incident.timestamp)}</span>
+              <span className="font-mono text-xs text-muted-foreground">{formatRelativeTime(incident.timestamp)}</span>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => onInvestigate(incident)}
-                className="border-slate-700 text-slate-200 hover:bg-slate-800"
+                className="border-border text-foreground hover:bg-secondary"
               >
                 Investigate
               </Button>
             </div>
           </div>
 
-          <p className="mt-3 line-clamp-2 text-sm text-slate-400">{incident.inputSummary}</p>
+          <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">{incident.inputSummary}</p>
 
-          <Separator className="my-4 bg-slate-800" />
+          <Separator className="my-4 bg-muted" />
 
           {/* Vertical timeline */}
           <div className="space-y-0">
@@ -130,19 +130,19 @@ function IncidentCard({
                 className="relative flex gap-3 pb-4 last:pb-0"
               >
                 {eventIndex < incident.events.length - 1 ? (
-                  <span className="absolute left-[5px] top-3 h-full w-px bg-slate-800" />
+                  <span className="absolute left-[5px] top-3 h-full w-px bg-muted" />
                 ) : null}
                 <span
                   className={cn(
                     "relative mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full",
                     eventIndex === incident.events.length - 1
                       ? severityDotClass(incident.severity)
-                      : "bg-slate-600"
+                      : "bg-border"
                   )}
                 />
                 <div className="flex flex-1 items-baseline justify-between gap-2">
-                  <span className="text-sm text-slate-300">{event.label}</span>
-                  <span className="shrink-0 font-mono text-xs text-slate-500">{formatTime(event.timestamp)}</span>
+                  <span className="text-sm text-muted-foreground">{event.label}</span>
+                  <span className="shrink-0 font-mono text-xs text-muted-foreground">{formatTime(event.timestamp)}</span>
                 </div>
               </motion.div>
             ))}
@@ -207,12 +207,12 @@ export default function ThreatsPage() {
     return (
       <div className="space-y-8">
         <div className="space-y-2">
-          <Skeleton className="h-8 w-64 bg-slate-800" />
-          <Skeleton className="h-4 w-96 bg-slate-800" />
+          <Skeleton className="h-8 w-64 bg-muted" />
+          <Skeleton className="h-4 w-96 bg-muted" />
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, index) => (
-            <Skeleton key={index} className="h-32 rounded-xl bg-slate-800" />
+            <Skeleton key={index} className="h-32 rounded-xl bg-muted" />
           ))}
         </div>
       </div>
@@ -221,8 +221,8 @@ export default function ThreatsPage() {
 
   if (tenantsError || error) {
     return (
-      <Card className="border-red-900/50 bg-slate-900">
-        <CardContent className="p-6 text-sm text-red-400">{truncateMessage(tenantsError ?? error ?? "")}</CardContent>
+      <Card className="border-destructive/30 bg-card">
+        <CardContent className="p-6 text-sm text-destructive">{truncateMessage(tenantsError ?? error ?? "")}</CardContent>
       </Card>
     );
   }
@@ -231,17 +231,17 @@ export default function ThreatsPage() {
     <div className="space-y-8">
       <div>
         <div className="flex items-center gap-3">
-          <Radar className="h-6 w-6 text-blue-400" />
-          <h1 className="text-2xl font-semibold text-slate-50">Threat Timeline</h1>
+          <Radar className="h-6 w-6 text-accent" />
+          <h1 className="text-2xl font-semibold text-foreground">Threat Timeline</h1>
         </div>
-        <p className="mt-1 text-sm text-slate-400">Real-time reconstruction of AI agent incidents.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Real-time reconstruction of AI agent incidents.</p>
       </div>
 
       {/* Timeline metrics */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {loading || !data ? (
           Array.from({ length: 4 }).map((_, index) => (
-            <Skeleton key={index} className="h-32 rounded-xl bg-slate-800" />
+            <Skeleton key={index} className="h-32 rounded-xl bg-muted" />
           ))
         ) : (
           <>
@@ -249,25 +249,25 @@ export default function ThreatsPage() {
               title="Critical Incidents"
               value={data.metrics.criticalIncidents.toLocaleString("en-US")}
               icon={AlertOctagon}
-              accentClass="text-red-400"
+              accentClass="text-destructive"
             />
             <MetricCard
               title="High Risk Events"
               value={data.metrics.highRiskEvents.toLocaleString("en-US")}
               icon={AlertTriangle}
-              accentClass="text-yellow-400"
+              accentClass="text-warning"
             />
             <MetricCard
               title="Policies Triggered"
               value={data.metrics.policiesTriggered.toLocaleString("en-US")}
               icon={ShieldAlert}
-              accentClass="text-blue-400"
+              accentClass="text-chart-1"
             />
             <MetricCard
               title="Agents Involved"
               value={data.metrics.agentsInvolved.toLocaleString("en-US")}
               icon={Bot}
-              accentClass="text-purple-400"
+              accentClass="text-chart-5"
             />
           </>
         )}
@@ -275,20 +275,20 @@ export default function ThreatsPage() {
 
       {/* Incident stream */}
       <section>
-        <h2 className="text-lg font-semibold text-slate-50">Incident Stream</h2>
-        <Separator className="my-4 bg-slate-800" />
+        <h2 className="text-lg font-semibold text-foreground">Incident Stream</h2>
+        <Separator className="my-4 bg-muted" />
 
         {loading || !data ? (
           <div className="space-y-4">
             {Array.from({ length: SKELETON_INCIDENT_COUNT }).map((_, index) => (
-              <Skeleton key={index} className="h-56 rounded-xl bg-slate-800" />
+              <Skeleton key={index} className="h-56 rounded-xl bg-muted" />
             ))}
           </div>
         ) : data.incidents.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-16 text-center">
-            <ShieldCheck className="h-10 w-10 text-green-500" />
-            <h3 className="text-lg font-semibold text-slate-50">No incidents recorded</h3>
-            <p className="text-sm text-slate-400">
+            <ShieldCheck className="h-10 w-10 text-success" />
+            <h3 className="text-lg font-semibold text-foreground">No incidents recorded</h3>
+            <p className="text-sm text-muted-foreground">
               No blocked or flagged actions have been recorded for this tenant yet.
             </p>
           </div>
@@ -308,12 +308,12 @@ export default function ThreatsPage() {
 
       {/* Investigation panel */}
       <Sheet open={activeIncident !== null} onOpenChange={(open) => !open && setActiveIncident(null)}>
-        <SheetContent className="border-slate-800 bg-slate-900 text-slate-50">
+        <SheetContent className="border-border bg-card text-foreground">
           {activeIncident ? (
             <>
               <SheetHeader>
-                <SheetTitle className="text-slate-50">Incident Investigation</SheetTitle>
-                <SheetDescription className="text-slate-400">
+                <SheetTitle className="text-foreground">Incident Investigation</SheetTitle>
+                <SheetDescription className="text-muted-foreground">
                   {formatRelativeTime(activeIncident.timestamp)} &middot; {activeIncident.incidentId.slice(0, 8)}
                 </SheetDescription>
               </SheetHeader>
@@ -325,34 +325,34 @@ export default function ThreatsPage() {
 
                 <dl className="space-y-3 text-sm">
                   <div className="flex items-center justify-between">
-                    <dt className="text-slate-400">Agent</dt>
-                    <dd className="font-medium text-slate-200">{activeIncident.agentName}</dd>
+                    <dt className="text-muted-foreground">Agent</dt>
+                    <dd className="font-medium text-foreground">{activeIncident.agentName}</dd>
                   </div>
                   <div className="flex items-center justify-between">
-                    <dt className="text-slate-400">Action Type</dt>
-                    <dd className="font-medium text-slate-200">
+                    <dt className="text-muted-foreground">Action Type</dt>
+                    <dd className="font-medium text-foreground">
                       {activeIncident.actionType.replace(/_/g, " ")}
                     </dd>
                   </div>
                   <div className="flex items-center justify-between">
-                    <dt className="text-slate-400">Policy</dt>
-                    <dd className="font-medium text-slate-200">{activeIncident.policyName ?? "—"}</dd>
+                    <dt className="text-muted-foreground">Policy</dt>
+                    <dd className="font-medium text-foreground">{activeIncident.policyName ?? "—"}</dd>
                   </div>
                   <div className="flex items-center justify-between">
-                    <dt className="text-slate-400">Cost</dt>
-                    <dd className="flex items-center gap-1 font-medium text-slate-200">
-                      <DollarSign className="h-3 w-3 text-green-400" />
+                    <dt className="text-muted-foreground">Cost</dt>
+                    <dd className="flex items-center gap-1 font-medium text-foreground">
+                      <DollarSign className="h-3 w-3 text-success" />
                       {activeIncident.costUsd !== null ? costFormatter.format(activeIncident.costUsd) : "—"}
                     </dd>
                   </div>
                   <div className="flex items-center justify-between">
-                    <dt className="text-slate-400">Timestamp</dt>
-                    <dd className="font-medium text-slate-200">
+                    <dt className="text-muted-foreground">Timestamp</dt>
+                    <dd className="font-medium text-foreground">
                       {new Date(activeIncident.timestamp).toLocaleString("en-US")}
                     </dd>
                   </div>
                   <div className="flex items-center justify-between">
-                    <dt className="text-slate-400">Policy Result</dt>
+                    <dt className="text-muted-foreground">Policy Result</dt>
                     <dd>
                       <Badge variant="outline" className={policyResultBadgeClass(activeIncident.policyResult)}>
                         {activeIncident.policyResult}
@@ -361,25 +361,25 @@ export default function ThreatsPage() {
                   </div>
                 </dl>
 
-                <Separator className="bg-slate-800" />
+                <Separator className="bg-muted" />
 
                 <div>
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Input Summary</h4>
-                  <p className="mt-1 text-sm text-slate-300">{activeIncident.inputSummary}</p>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Input Summary</h4>
+                  <p className="mt-1 text-sm text-muted-foreground">{activeIncident.inputSummary}</p>
                 </div>
                 <div>
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Output Summary</h4>
-                  <p className="mt-1 text-sm text-slate-300">{activeIncident.outputSummary}</p>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Output Summary</h4>
+                  <p className="mt-1 text-sm text-muted-foreground">{activeIncident.outputSummary}</p>
                 </div>
 
-                <Separator className="bg-slate-800" />
+                <Separator className="bg-muted" />
 
-                <div className="rounded-lg border border-blue-900/50 bg-blue-950/20 p-4">
-                  <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-blue-300">
+                <div className="rounded-lg border border-chart-1/30 bg-chart-1/10 p-4">
+                  <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-chart-1">
                     <Sparkles className="h-4 w-4" />
                     AI Explanation
                   </div>
-                  <p className="text-sm leading-relaxed text-slate-300">{activeIncident.explanation}</p>
+                  <p className="text-sm leading-relaxed text-muted-foreground">{activeIncident.explanation}</p>
                 </div>
               </div>
             </>

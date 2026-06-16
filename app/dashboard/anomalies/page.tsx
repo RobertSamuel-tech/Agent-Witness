@@ -63,9 +63,9 @@ const QUICK_CHIPS: QuickChip[] = [
 ];
 
 function similarityFillClass(similarity: number): string {
-  if (similarity > 0.85) return "bg-red-500";
-  if (similarity > 0.7) return "bg-yellow-500";
-  return "bg-blue-500";
+  if (similarity > 0.85) return "bg-destructive";
+  if (similarity > 0.7) return "bg-warning";
+  return "bg-accent";
 }
 
 function similarityPercent(similarity: number): number {
@@ -92,19 +92,19 @@ function ResultCard({
       transition={{ delay: index * 0.05 }}
     >
       <Card
-        className="cursor-pointer border-slate-800 bg-slate-900 transition-colors hover:border-slate-700"
+        className="cursor-pointer border-border bg-card transition-colors hover:border-accent/50"
         onClick={() => onInvestigate(result.id)}
       >
         <CardContent className="space-y-2 p-4">
           <div className="flex items-center justify-between gap-3">
             <div className="flex w-full max-w-[140px] items-center gap-2">
-              <div className="h-2 w-full overflow-hidden rounded-full bg-slate-800">
+              <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
                 <div
                   className={`h-full ${similarityFillClass(result.similarity)}`}
                   style={{ width: `${percent}%` }}
                 />
               </div>
-              <span className="font-mono text-xs text-slate-400">{percent}% match</span>
+              <span className="font-mono text-xs text-muted-foreground">{percent}% match</span>
             </div>
             <Badge variant="outline" className={policyResultBadgeClass(result.policy_result)}>
               {result.policy_result}
@@ -112,28 +112,28 @@ function ResultCard({
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-slate-200">
+            <span className="text-sm font-semibold text-foreground">
               Agent {result.agent_id.slice(0, 8)}
             </span>
-            <Badge variant="outline" className="border-slate-700 text-xs text-slate-300">
+            <Badge variant="outline" className="border-border text-xs text-muted-foreground">
               {result.action_type}
             </Badge>
           </div>
 
-          <Separator className="bg-slate-800" />
+          <Separator className="bg-muted" />
 
-          <p className="mt-2 line-clamp-2 text-sm text-slate-300">{result.input_summary}</p>
-          <p className="mt-1 line-clamp-2 text-sm text-slate-400">{result.output_summary}</p>
+          <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{result.input_summary}</p>
+          <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{result.output_summary}</p>
 
-          <div className="mt-3 rounded border border-slate-800 bg-slate-900/50 p-3">
-            <p className="text-xs text-slate-400">
+          <div className="mt-3 rounded border border-border bg-card/50 p-3">
+            <p className="text-xs text-muted-foreground">
               This action has a semantic similarity score of {percent}% relative to your query. Results
               are ranked using pgvector cosine similarity search.
             </p>
             {result.policy_result !== "allowed" ? (
               <p
                 className={`mt-1 text-xs ${
-                  result.policy_result === "blocked" ? "text-red-400" : "text-yellow-400"
+                  result.policy_result === "blocked" ? "text-destructive" : "text-warning"
                 }`}
               >
                 This action was {result.policy_result} by policy enforcement.
@@ -141,7 +141,7 @@ function ResultCard({
             ) : null}
           </div>
 
-          <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
+          <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
             <span>{formatRelativeTime(result.created_at)}</span>
             <div className="flex items-center gap-1">
               <Button
@@ -151,7 +151,7 @@ function ResultCard({
                   event.stopPropagation();
                   onFindSimilar(result.input_summary);
                 }}
-                className="text-slate-300 hover:text-slate-50"
+                className="text-muted-foreground hover:text-foreground"
               >
                 Find Similar
               </Button>
@@ -162,7 +162,7 @@ function ResultCard({
                   event.stopPropagation();
                   onInvestigate(result.id);
                 }}
-                className="border-slate-700 text-slate-200 hover:bg-slate-800"
+                className="border-border text-foreground hover:bg-secondary"
               >
                 <InvestigateIcon policyResult={result.policy_result} className="h-3.5 w-3.5" />
                 Investigate
@@ -232,12 +232,12 @@ export default function AnomaliesPage() {
   return (
     <div className="space-y-8">
       <div className="mb-8 text-center">
-        <h1 className="text-3xl font-bold tracking-tight text-slate-50">Semantic Anomaly Detection</h1>
-        <p className="mt-2 flex items-center justify-center gap-2 text-slate-400">
+        <h1 className="text-3xl font-bold tracking-tight text-foreground">Semantic Anomaly Detection</h1>
+        <p className="mt-2 flex items-center justify-center gap-2 text-muted-foreground">
           Search by intent, not keywords. Powered by Aurora pgvector.
           <Badge
             variant="secondary"
-            className="border-blue-800 bg-blue-900/30 text-blue-400"
+            className="border-chart-1/30 bg-chart-1/10 text-chart-1"
           >
             HNSW Index
           </Badge>
@@ -250,13 +250,13 @@ export default function AnomaliesPage() {
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Has any agent exported user data to an unauthorized third party?"
-            className="min-h-[80px] resize-none border-slate-700 bg-slate-900 text-lg"
+            className="min-h-[80px] resize-none border-border bg-card text-lg"
           />
           <Button
             size="lg"
             onClick={() => void runSearch(query)}
             disabled={!canSearch}
-            className="bg-blue-600 hover:bg-blue-500"
+            className="bg-accent text-accent-foreground hover:bg-accent/90"
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Brain className="h-4 w-4" />}
             Search Intent
@@ -273,7 +273,7 @@ export default function AnomaliesPage() {
                 size="sm"
                 onClick={() => handleChipClick(chip)}
                 disabled={!selectedTenantId || loading}
-                className="border-slate-700 text-slate-300 hover:bg-slate-800"
+                className="border-border text-muted-foreground hover:bg-secondary"
               >
                 <Icon className="h-3.5 w-3.5" />
                 {chip.label}
@@ -282,7 +282,7 @@ export default function AnomaliesPage() {
           })}
         </div>
 
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-muted-foreground">
           Tip: Ask in plain English. pgvector finds semantic similarity, not exact keyword matches.
         </p>
       </div>
@@ -290,14 +290,14 @@ export default function AnomaliesPage() {
       <div>
         {hasSearched ? (
           <div className="mb-4 flex items-center justify-end gap-2">
-            <span className="text-sm text-slate-400">Compare to Keywords</span>
+            <span className="text-sm text-muted-foreground">Compare to Keywords</span>
             <Switch checked={compareToKeywords} onCheckedChange={setCompareToKeywords} />
           </div>
         ) : null}
 
         {compareToKeywords && hasSearched ? (
-          <Card className="mb-4 border-blue-900/50 bg-blue-950/20">
-            <CardContent className="space-y-2 p-4 text-sm text-slate-300">
+          <Card className="mb-4 border-chart-1/30 bg-chart-1/10">
+            <CardContent className="space-y-2 p-4 text-sm text-muted-foreground">
               <p>
                 Keyword search would have missed this because the agent used synonyms like &ldquo;dumped
                 records&rdquo; instead of &ldquo;exported data&rdquo;.
@@ -308,9 +308,9 @@ export default function AnomaliesPage() {
         ) : null}
 
         {error ? (
-          <Card className="border-red-900/50 bg-slate-900">
+          <Card className="border-destructive/30 bg-card">
             <CardContent className="flex flex-col items-start gap-3 p-6">
-              <div className="flex items-center gap-2 text-red-400">
+              <div className="flex items-center gap-2 text-destructive">
                 <AlertTriangle className="h-4 w-4" />
                 <p className="text-sm">{truncateMessage(error)}</p>
               </div>
@@ -318,7 +318,7 @@ export default function AnomaliesPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => void runSearch(query)}
-                className="border-slate-700 text-slate-200 hover:bg-slate-800"
+                className="border-border text-foreground hover:bg-secondary"
               >
                 Retry
               </Button>
@@ -332,19 +332,19 @@ export default function AnomaliesPage() {
                 animate={{ opacity: [0.5, 1, 0.5] }}
                 transition={{ duration: 1.5, repeat: Infinity, delay: index * 0.2 }}
               >
-                <Skeleton className="h-44 rounded-xl bg-slate-800" />
+                <Skeleton className="h-44 rounded-xl bg-muted" />
               </motion.div>
             ))}
           </div>
         ) : hasSearched && results.length === 0 ? (
           <div className="mt-16 text-center">
-            <SearchX className="mx-auto h-16 w-16 text-slate-600" />
-            <h2 className="mt-4 text-xl font-semibold text-slate-50">No semantic matches found</h2>
-            <p className="mx-auto mt-2 max-w-md text-slate-400">
+            <SearchX className="mx-auto h-16 w-16 text-muted-foreground" />
+            <h2 className="mt-4 text-xl font-semibold text-foreground">No semantic matches found</h2>
+            <p className="mx-auto mt-2 max-w-md text-muted-foreground">
               Try querying for intent like &ldquo;data exfiltration&rdquo;, &ldquo;unauthorized
               access&rdquo;, or &ldquo;bulk export&rdquo; instead of exact keywords.
             </p>
-            {suggestedQuery ? <p className="mx-auto mt-4 max-w-md text-sm text-slate-500">{suggestedQuery}</p> : null}
+            {suggestedQuery ? <p className="mx-auto mt-4 max-w-md text-sm text-muted-foreground">{suggestedQuery}</p> : null}
           </div>
         ) : results.length > 0 ? (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

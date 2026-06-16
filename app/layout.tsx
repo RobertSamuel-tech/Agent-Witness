@@ -1,16 +1,26 @@
 import type { Metadata } from "next";
-import { Inter, Geist_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
-const inter = Inter({
+const dmSans = localFont({
+  src: [
+    { path: "../public/fonts/dm-sans-latin-ext.woff2", weight: "400 700", style: "normal" },
+    { path: "../public/fonts/dm-sans-latin.woff2", weight: "400 700", style: "normal" },
+  ],
   variable: "--font-sans",
-  subsets: ["latin"],
+  display: "swap",
+  fallback: ["system-ui", "sans-serif"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+const jetbrainsMono = localFont({
+  src: [
+    { path: "../public/fonts/jetbrains-mono-latin-ext.woff2", weight: "100 800", style: "normal" },
+    { path: "../public/fonts/jetbrains-mono-latin.woff2", weight: "100 800", style: "normal" },
+  ],
+  variable: "--font-mono",
+  display: "swap",
+  fallback: ["monospace"],
 });
 
 export const metadata: Metadata = {
@@ -26,7 +36,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`dark ${inter.variable} ${geistMono.variable} h-full antialiased`}
+      className={`dark ${dmSans.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         {children}

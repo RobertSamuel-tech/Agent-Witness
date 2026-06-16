@@ -77,9 +77,9 @@ function StatCard({
   accentClass: string;
 }) {
   return (
-    <Card className="border-slate-800 bg-slate-900">
+    <Card className="border-border bg-card">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-sm font-medium text-slate-400">{title}</CardTitle>
+        <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
         <Icon className={cn("h-4 w-4", accentClass)} />
       </CardHeader>
       <CardContent>
@@ -156,12 +156,12 @@ export default function DashboardPage() {
     return (
       <div className="space-y-8">
         <div className="space-y-2">
-          <Skeleton className="h-8 w-48 bg-slate-800" />
-          <Skeleton className="h-4 w-64 bg-slate-800" />
+          <Skeleton className="h-8 w-48 bg-muted" />
+          <Skeleton className="h-4 w-64 bg-muted" />
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, index) => (
-            <Skeleton key={index} className="h-32 rounded-xl bg-slate-800" />
+            <Skeleton key={index} className="h-32 rounded-xl bg-muted" />
           ))}
         </div>
       </div>
@@ -170,14 +170,14 @@ export default function DashboardPage() {
 
   if (tenantsError) {
     return (
-      <Card className="border-red-900/50 bg-slate-900">
+      <Card className="border-destructive/30 bg-card">
         <CardContent className="flex flex-col items-start gap-3 p-6">
-          <p className="text-sm text-red-400">{truncateMessage(tenantsError)}</p>
+          <p className="text-sm text-destructive">{truncateMessage(tenantsError)}</p>
           <Button
             variant="outline"
             size="sm"
             onClick={refetchTenants}
-            className="border-slate-700 text-slate-200 hover:bg-slate-800"
+            className="border-border text-foreground hover:bg-secondary"
           >
             Retry
           </Button>
@@ -188,21 +188,21 @@ export default function DashboardPage() {
 
   if (tenants.length === 0 || !selectedTenantId) {
     return (
-      <Card className="border-slate-800 bg-slate-900">
+      <Card className="border-border bg-card">
         <CardContent className="flex flex-col items-center gap-3 p-12 text-center">
-          <Database className="h-10 w-10 text-slate-500" />
-          <h2 className="text-lg font-semibold text-slate-50">No tenants found</h2>
-          <p className="max-w-md text-sm text-slate-400">
+          <Database className="h-10 w-10 text-muted-foreground" />
+          <h2 className="text-lg font-semibold text-foreground">No tenants found</h2>
+          <p className="max-w-md text-sm text-muted-foreground">
             AgentWitness has no tenants yet. Bootstrap the database by inserting a row into the{" "}
-            <code className="rounded bg-slate-800 px-1 py-0.5 text-xs text-slate-300">tenants</code>{" "}
-            table (see <code className="rounded bg-slate-800 px-1 py-0.5 text-xs text-slate-300">lib/db/schema.sql</code>),
+            <code className="rounded bg-muted px-1 py-0.5 text-xs text-muted-foreground">tenants</code>{" "}
+            table (see <code className="rounded bg-muted px-1 py-0.5 text-xs text-muted-foreground">lib/db/schema.sql</code>),
             then reload this page.
           </p>
           <Button
             variant="outline"
             size="sm"
             onClick={refetchTenants}
-            className="border-slate-700 text-slate-200 hover:bg-slate-800"
+            className="border-border text-foreground hover:bg-secondary"
           >
             Retry
           </Button>
@@ -214,8 +214,8 @@ export default function DashboardPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-50">Overview</h1>
-        <p className="mt-1 text-sm text-slate-400">
+        <h1 className="text-2xl font-semibold text-foreground">Overview</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           {stats?.tenantName
             ? `Live audit metrics for ${stats.tenantName}.`
             : "Live audit metrics for your agents."}
@@ -223,14 +223,14 @@ export default function DashboardPage() {
       </div>
 
       {statsError ? (
-        <Card className="border-red-900/50 bg-slate-900">
+        <Card className="border-destructive/30 bg-card">
           <CardContent className="flex flex-col items-start gap-3 p-6">
-            <p className="text-sm text-red-400">{truncateMessage(statsError)}</p>
+            <p className="text-sm text-destructive">{truncateMessage(statsError)}</p>
             <Button
               variant="outline"
               size="sm"
               onClick={retryStats}
-              className="border-slate-700 text-slate-200 hover:bg-slate-800"
+              className="border-border text-foreground hover:bg-secondary"
             >
               Retry
             </Button>
@@ -241,7 +241,7 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {statsLoading || !stats ? (
               Array.from({ length: 4 }).map((_, index) => (
-                <Skeleton key={index} className="h-32 rounded-xl bg-slate-800" />
+                <Skeleton key={index} className="h-32 rounded-xl bg-muted" />
               ))
             ) : (
               <>
@@ -249,25 +249,25 @@ export default function DashboardPage() {
                   title="Total Actions"
                   value={stats.totalActions.toLocaleString("en-US")}
                   icon={ListChecks}
-                  accentClass="text-blue-400"
+                  accentClass="text-chart-1"
                 />
                 <StatCard
                   title="Blocked"
                   value={stats.blockedCount.toLocaleString("en-US")}
                   icon={ShieldAlert}
-                  accentClass="text-red-400"
+                  accentClass="text-destructive"
                 />
                 <StatCard
                   title="Flagged"
                   value={stats.flaggedCount.toLocaleString("en-US")}
                   icon={AlertTriangle}
-                  accentClass="text-yellow-400"
+                  accentClass="text-warning"
                 />
                 <StatCard
                   title="Avg Cost"
                   value={avgCostFormatter.format(stats.avgCost)}
                   icon={DollarSign}
-                  accentClass="text-green-400"
+                  accentClass="text-success"
                 />
               </>
             )}
@@ -275,38 +275,38 @@ export default function DashboardPage() {
 
           <section className="mt-8">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-slate-50">Recent Activity</h2>
+              <h2 className="text-lg font-semibold text-foreground">Recent Activity</h2>
               {!statsLoading && stats ? (
-                <Badge variant="outline" className="border-slate-700 text-slate-300">
+                <Badge variant="outline" className="border-border text-muted-foreground">
                   {stats.activePolicies.toLocaleString("en-US")} Policies Active
                 </Badge>
               ) : null}
             </div>
-            <Separator className="my-4 bg-slate-800" />
+            <Separator className="my-4 bg-muted" />
 
             <Table>
               <TableHeader>
-                <TableRow className="border-slate-800">
-                  <TableHead className="text-slate-400">Agent</TableHead>
-                  <TableHead className="text-slate-400">Type</TableHead>
-                  <TableHead className="text-slate-400">Result</TableHead>
-                  <TableHead className="text-slate-400">Input Summary</TableHead>
-                  <TableHead className="text-slate-400">Time</TableHead>
-                  <TableHead className="text-right text-slate-400">Actions</TableHead>
+                <TableRow className="border-border">
+                  <TableHead className="text-muted-foreground">Agent</TableHead>
+                  <TableHead className="text-muted-foreground">Type</TableHead>
+                  <TableHead className="text-muted-foreground">Result</TableHead>
+                  <TableHead className="text-muted-foreground">Input Summary</TableHead>
+                  <TableHead className="text-muted-foreground">Time</TableHead>
+                  <TableHead className="text-right text-muted-foreground">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {statsLoading || !stats ? (
                   Array.from({ length: SKELETON_ROW_COUNT }).map((_, index) => (
-                    <TableRow key={index} className="border-slate-800">
+                    <TableRow key={index} className="border-border">
                       <TableCell colSpan={6}>
-                        <Skeleton className="h-6 w-full bg-slate-800" />
+                        <Skeleton className="h-6 w-full bg-muted" />
                       </TableCell>
                     </TableRow>
                   ))
                 ) : stats.recentActions.length === 0 ? (
-                  <TableRow className="border-slate-800">
-                    <TableCell colSpan={6} className="text-center text-sm text-slate-500">
+                  <TableRow className="border-border">
+                    <TableCell colSpan={6} className="text-center text-sm text-muted-foreground">
                       No actions recorded yet.
                     </TableCell>
                   </TableRow>
@@ -316,18 +316,18 @@ export default function DashboardPage() {
                       <TableRow
                         key={action.id}
                         className={cn(
-                          "border-slate-800",
+                          "border-border",
                           action.policyResult === "blocked" &&
-                            "border-l-2 border-l-red-500 bg-red-950/30"
+                            "border-l-2 border-l-destructive bg-destructive/10"
                         )}
                       >
                         <TableCell>
-                          <Badge variant="outline" className="border-slate-700 text-slate-300">
+                          <Badge variant="outline" className="border-border text-muted-foreground">
                             {action.agentName}
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline" className="border-slate-700 text-slate-300">
+                          <Badge variant="outline" className="border-border text-muted-foreground">
                             {action.actionType}
                           </Badge>
                         </TableCell>
@@ -336,10 +336,10 @@ export default function DashboardPage() {
                             {action.policyResult}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-slate-300">
+                        <TableCell className="text-muted-foreground">
                           {truncateMessage(action.inputSummary, INPUT_SUMMARY_MAX_LENGTH)}
                         </TableCell>
-                        <TableCell className="text-slate-500">
+                        <TableCell className="text-muted-foreground">
                           {formatRelativeTime(action.createdAt)}
                         </TableCell>
                         <TableCell className="text-right">
@@ -347,7 +347,7 @@ export default function DashboardPage() {
                             variant="outline"
                             size="sm"
                             onClick={() => setInvestigateId(action.id)}
-                            className="border-slate-700 text-slate-200 hover:bg-slate-800"
+                            className="border-border text-foreground hover:bg-secondary"
                           >
                             <InvestigateIcon policyResult={action.policyResult} className="h-3.5 w-3.5" />
                             Investigate

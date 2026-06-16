@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Reference-only design system source, not part of the app:
+    "sales-ops-dashboard/**",
   ]),
 ]);
 

@@ -7,6 +7,7 @@ import {
   getActionsWithAgentName,
   insertAgentAction,
 } from "@/lib/db/queries";
+import { isExecutionPaused } from "@/lib/db/emergency-controls";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -74,6 +75,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   try {
+    const paused = await isExecutionPaused(tenantId);
+    if (paused) {
+      return NextResponse.json({ error: "Agent execution paused" }, { status: 423 });
+    }
+
     const agent = await getAgentById(tenantId, body.agentId);
     if (!agent) {
       return NextResponse.json({ error: "Agent not found for tenant" }, { status: 404 });

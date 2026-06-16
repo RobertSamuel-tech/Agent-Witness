@@ -90,3 +90,14 @@ END $$;
 -- The pgvector HNSW Index (Crucial for the demo)
 CREATE INDEX IF NOT EXISTS idx_actions_embedding ON agent_actions
     USING hnsw (embedding vector_cosine_ops);
+
+-- 5. Emergency Controls (Global Kill Switch)
+CREATE TABLE IF NOT EXISTS emergency_controls (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) UNIQUE,
+    is_agent_execution_paused BOOLEAN NOT NULL DEFAULT false,
+    reason TEXT,
+    paused_by TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);

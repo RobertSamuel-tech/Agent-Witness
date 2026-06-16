@@ -3,13 +3,11 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { AlertTriangle, Brain, Menu, Radar, ScrollText, Shield, ShieldAlert } from "lucide-react";
+import { Activity, AlertTriangle, Brain, Menu, Power, Radar, ScrollText, Share2, Shield, ShieldAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTenants } from "@/lib/tenant";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -37,6 +35,9 @@ const NAV_ITEMS = [
   { href: "/dashboard/audit-log", label: "Audit Log", icon: ScrollText },
   { href: "/dashboard/anomalies", label: "Semantic Search", icon: Brain },
   { href: "/dashboard/policies", label: "Policies", icon: Shield },
+  { href: "/dashboard/live", label: "Live Stream", icon: Activity },
+  { href: "/dashboard/graph", label: "Causal Graph", icon: Share2 },
+  { href: "/dashboard/control-center", label: "Control Center", icon: Power },
 ] as const;
 
 function getCurrentRouteLabel(pathname: string): string {
@@ -53,24 +54,24 @@ function StatusRow({
 }) {
   const dotClass =
     status === "connected"
-      ? "bg-green-500"
+      ? "bg-success"
       : status === "disconnected"
-        ? "bg-red-500"
-        : "bg-slate-500";
+        ? "bg-destructive"
+        : "bg-muted-foreground";
 
   const textClass =
     status === "connected"
-      ? "text-slate-300"
+      ? "text-foreground"
       : status === "disconnected"
-        ? "text-red-400"
-        : "text-slate-500";
+        ? "text-destructive"
+        : "text-muted-foreground";
 
   const statusLabel =
     status === "connected" ? "Connected" : status === "disconnected" ? "Disconnected" : "Checking...";
 
   return (
     <div className="flex items-center justify-between py-0.5">
-      <span className="text-slate-400">{label}</span>
+      <span className="text-muted-foreground">{label}</span>
       <span className={cn("flex items-center gap-1.5", textClass)}>
         <span className={cn("h-1.5 w-1.5 rounded-full", dotClass)} />
         {statusLabel}
@@ -122,19 +123,19 @@ function SystemStatusWidget() {
   return (
     <div
       className={cn(
-        "border-t border-slate-800 p-4 text-xs",
-        isDegraded && "border-red-900/50 bg-red-950/20"
+        "border-t border-sidebar-border p-4 text-xs",
+        isDegraded && "border-destructive/30 bg-destructive/10"
       )}
     >
       {isDegraded ? (
-        <div className="mb-2 flex items-center gap-1.5 text-red-400">
+        <div className="mb-2 flex items-center gap-1.5 text-destructive">
           <AlertTriangle className="h-3.5 w-3.5" />
           <span>System degraded</span>
         </div>
       ) : null}
       <StatusRow label="Aurora" status={auroraStatus} />
       <StatusRow label="OpenRouter" status={openrouterStatus} />
-      <div className="mt-2 text-slate-500">Tenant: {tenantName}</div>
+      <div className="mt-2 text-muted-foreground">Tenant: {tenantName}</div>
     </div>
   );
 }
@@ -151,19 +152,19 @@ function TenantSwitcher() {
   }
 
   if (loading) {
-    return <Skeleton className="h-8 w-36 bg-slate-800" />;
+    return <Skeleton className="h-8 w-36 bg-secondary" />;
   }
 
   if (error || tenants.length === 0) {
-    return <span className="text-xs text-slate-500">No tenants</span>;
+    return <span className="text-xs text-muted-foreground">No tenants</span>;
   }
 
   return (
     <Select value={selectedTenantId ?? undefined} onValueChange={handleChange}>
-      <SelectTrigger className="w-44 border-slate-700 bg-slate-800 text-slate-200">
+      <SelectTrigger className="w-44 border-border bg-secondary text-foreground">
         <SelectValue />
       </SelectTrigger>
-      <SelectContent className="border-slate-700 bg-slate-800 text-slate-200">
+      <SelectContent className="border-border bg-popover text-foreground">
         {tenants.map((tenant) => (
           <SelectItem key={tenant.id} value={tenant.id}>
             {tenant.name}
@@ -183,11 +184,10 @@ function SidebarContent({
 }) {
   return (
     <div className="flex h-full flex-col">
-      <div className="p-6">
-        <span className="text-xl font-bold tracking-tight text-slate-50">AgentWitness</span>
+      <div className="flex h-16 items-center border-b border-sidebar-border px-6">
+        <span className="text-xl font-bold tracking-tight text-sidebar-foreground">AgentWitness</span>
       </div>
-      <Separator className="bg-slate-800" />
-      <ScrollArea className="flex-1">
+      <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
         <nav className="px-3 py-4">
           <ul className="space-y-1">
             {NAV_ITEMS.map((item) => {
@@ -200,13 +200,16 @@ function SidebarContent({
                     href={item.href}
                     onClick={onNavigate}
                     className={cn(
-                      "flex items-center gap-3 rounded-md px-4 py-3 text-sm font-medium transition-colors",
+                      "group relative flex items-center gap-3 rounded-md px-4 py-2.5 text-sm font-medium transition-colors duration-200",
                       isActive
-                        ? "border-l-2 border-blue-500 bg-slate-800 text-white"
-                        : "text-slate-400 hover:bg-slate-800/50 hover:text-slate-200"
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                        : "text-sidebar-foreground/60 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
                     )}
                   >
-                    <Icon className="h-4 w-4" />
+                    {isActive && (
+                      <span className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-accent" />
+                    )}
+                    <Icon className="h-4 w-4 transition-transform duration-200 group-hover:scale-110" />
                     {item.label}
                   </Link>
                 </li>
@@ -214,7 +217,7 @@ function SidebarContent({
             })}
           </ul>
         </nav>
-      </ScrollArea>
+      </div>
       <SystemStatusWidget />
     </div>
   );
@@ -226,47 +229,47 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const breadcrumbLabel = getCurrentRouteLabel(pathname);
 
   return (
-    <div className="dark flex min-h-screen bg-slate-950 text-slate-50">
-      <aside className="hidden h-screen w-64 flex-col border-r border-slate-800 bg-slate-900 lg:flex">
+    <div className="flex h-screen overflow-hidden bg-background text-foreground">
+      <aside className="hidden h-full w-64 flex-col border-r border-sidebar-border bg-sidebar lg:flex">
         <SidebarContent pathname={pathname} />
       </aside>
 
       <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
-        <SheetContent side="left" className="w-64 border-slate-800 bg-slate-900 p-0 text-slate-50">
+        <SheetContent side="left" className="w-64 border-sidebar-border bg-sidebar p-0 text-sidebar-foreground">
           <SidebarContent pathname={pathname} onNavigate={() => setMobileNavOpen(false)} />
         </SheetContent>
       </Sheet>
 
-      <div className="flex min-h-screen flex-1 flex-col">
-        <header className="flex h-16 items-center justify-between border-b border-slate-800 bg-slate-900 px-6">
+      <div className="flex h-full flex-1 flex-col overflow-hidden">
+        <header className="flex h-16 shrink-0 items-center justify-between border-b border-border bg-background/80 px-6 backdrop-blur-sm">
           <div className="flex items-center gap-3">
             <Button
               variant="ghost"
               size="icon"
-              className="text-slate-300 hover:bg-slate-800 hover:text-slate-50 lg:hidden"
+              className="text-muted-foreground hover:bg-secondary hover:text-foreground lg:hidden"
               onClick={() => setMobileNavOpen(true)}
             >
               <Menu className="h-5 w-5" />
               <span className="sr-only">Open navigation</span>
             </Button>
-            <span className="text-sm text-slate-400">
-              Dashboard <span className="text-slate-600">/</span>{" "}
-              <span className="text-slate-200">{breadcrumbLabel}</span>
+            <span className="text-sm text-muted-foreground">
+              Dashboard <span className="text-muted-foreground/50">/</span>{" "}
+              <span className="text-foreground">{breadcrumbLabel}</span>
             </span>
           </div>
 
           <Badge
             variant="outline"
-            className="hidden items-center gap-2 border-slate-700 text-slate-300 sm:flex"
+            className="hidden items-center gap-2 border-border text-muted-foreground sm:flex"
           >
-            <span className="h-2 w-2 animate-pulse rounded-full bg-green-500" />
+            <span className="h-2 w-2 animate-pulse rounded-full bg-success" />
             Live Monitoring
           </Badge>
 
           <TenantSwitcher />
         </header>
 
-        <main className="flex-1 overflow-auto bg-slate-950 p-8">{children}</main>
+        <main className="flex-1 overflow-y-auto bg-background p-6">{children}</main>
       </div>
     </div>
   );

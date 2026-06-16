@@ -13,6 +13,7 @@ import {
   Globe,
   Loader2,
   Mail,
+  Share2,
   ShieldAlert,
   ShieldQuestion,
   Sparkles,
@@ -23,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { useRouter } from "next/navigation";
 import { cn, formatRelativeTime, policyResultBadgeClass, truncateMessage } from "@/lib/utils";
 import { useTenants } from "@/lib/tenant";
 import type { Agent, AgentAction, Policy } from "@/lib/db/types";
@@ -67,13 +69,13 @@ function assetIcon(asset: string): LucideIcon {
 function riskLevelClasses(level: RiskLevel): { text: string; bg: string; border: string; bar: string } {
   switch (level) {
     case "critical":
-      return { text: "text-red-400", bg: "bg-red-950/50", border: "border-red-800", bar: "bg-red-500" };
+      return { text: "text-destructive", bg: "bg-destructive/10", border: "border-destructive/30", bar: "bg-destructive" };
     case "high":
-      return { text: "text-orange-400", bg: "bg-orange-950/50", border: "border-orange-800", bar: "bg-orange-500" };
+      return { text: "text-warning", bg: "bg-warning/10", border: "border-warning/30", bar: "bg-warning" };
     case "medium":
-      return { text: "text-yellow-400", bg: "bg-yellow-950/50", border: "border-yellow-800", bar: "bg-yellow-500" };
+      return { text: "text-chart-1", bg: "bg-chart-1/10", border: "border-chart-1/30", bar: "bg-chart-1" };
     case "low":
-      return { text: "text-green-400", bg: "bg-green-950/50", border: "border-green-800", bar: "bg-green-500" };
+      return { text: "text-success", bg: "bg-success/10", border: "border-success/30", bar: "bg-success" };
   }
 }
 
@@ -83,6 +85,7 @@ function similarityPercent(similarity: number): number {
 
 export function InvestigationPanel({ actionId, onOpenChange }: InvestigationPanelProps) {
   const { selectedTenantId } = useTenants();
+  const router = useRouter();
 
   const [history, setHistory] = useState<string[]>([]);
   const [data, setData] = useState<InvestigationResponse | null>(null);
@@ -148,25 +151,41 @@ export function InvestigationPanel({ actionId, onOpenChange }: InvestigationPane
     <Sheet open={actionId !== null} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="w-full overflow-y-auto border-slate-800 bg-slate-900 text-slate-50 data-[side=right]:sm:max-w-2xl"
+        className="w-full overflow-y-auto border-border bg-card text-foreground data-[side=right]:sm:max-w-2xl"
       >
         <SheetHeader>
-          <div className="flex items-center gap-2">
-            {history.length > 0 ? (
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              {history.length > 0 ? (
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => setHistory((prev) => prev.slice(0, -1))}
+                  className="text-muted-foreground hover:bg-secondary hover:text-foreground"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  <span className="sr-only">Back</span>
+                </Button>
+              ) : null}
+              <ShieldAlert className="h-5 w-5 text-accent" />
+              <SheetTitle className="text-foreground">Investigation</SheetTitle>
+            </div>
+            {currentId && (
               <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => setHistory((prev) => prev.slice(0, -1))}
-                className="text-slate-300 hover:bg-slate-800 hover:text-slate-50"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  onOpenChange(false);
+                  router.push(`/dashboard/graph?id=${currentId}`);
+                }}
+                className="shrink-0 border-chart-5/30 bg-chart-5/10 text-chart-5 hover:bg-chart-5/20 hover:text-chart-5"
               >
-                <ArrowLeft className="h-4 w-4" />
-                <span className="sr-only">Back</span>
+                <Share2 className="mr-1.5 h-3.5 w-3.5" />
+                Open Graph
               </Button>
-            ) : null}
-            <ShieldAlert className="h-5 w-5 text-blue-400" />
-            <SheetTitle className="text-slate-50">Investigation</SheetTitle>
+            )}
           </div>
-          <SheetDescription className="font-mono text-xs text-slate-500">
+          <SheetDescription className="font-mono text-xs text-muted-foreground">
             Action ID: {currentId ?? "—"}
           </SheetDescription>
         </SheetHeader>
@@ -174,9 +193,9 @@ export function InvestigationPanel({ actionId, onOpenChange }: InvestigationPane
         <div className="space-y-6 px-4 pb-6">
           {loading || !data ? (
             error ? (
-              <p className="text-sm text-red-400">{truncateMessage(error)}</p>
+              <p className="text-sm text-destructive">{truncateMessage(error)}</p>
             ) : (
-              <div className="flex items-center justify-center py-16 text-slate-500">
+              <div className="flex items-center justify-center py-16 text-muted-foreground">
                 <Loader2 className="h-6 w-6 animate-spin" />
               </div>
             )
@@ -189,32 +208,32 @@ export function InvestigationPanel({ actionId, onOpenChange }: InvestigationPane
                 <Badge variant="outline" className={policyResultBadgeClass(data.action.policy_result)}>
                   {data.action.policy_result}
                 </Badge>
-                <span className="text-xs text-slate-500">{formatRelativeTime(data.action.created_at)}</span>
+                <span className="text-xs text-muted-foreground">{formatRelativeTime(data.action.created_at)}</span>
               </div>
 
               {/* Section 1: Why Blocked */}
               <section>
-                <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-400">
+                <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
                   {data.action.policy_result === "blocked" ? "Why Blocked" : "Why Flagged"}
                 </h3>
-                <Separator className="my-3 bg-slate-800" />
+                <Separator className="my-3 bg-muted" />
                 {data.policy ? (
                   <div className="space-y-3">
                     <Badge
                       variant="outline"
-                      className="border-blue-800 bg-blue-950/40 px-3 py-1 text-sm text-blue-300"
+                      className="border-chart-1/30 bg-chart-1/10 px-3 py-1 text-sm text-chart-1"
                     >
                       Matched Policy: {data.policy.rule_type.replace(/_/g, " ")}
                     </Badge>
-                    <div className="rounded-md border border-slate-800 bg-slate-950/50 p-3">
-                      <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    <div className="rounded-md border border-border bg-background/50 p-3">
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                         Policy Configuration
                       </p>
                       <div className="space-y-1">
                         {Object.entries(data.policy.rule_config).map(([key, value]) => (
                           <div key={key} className="flex items-center justify-between text-sm">
-                            <span className="text-slate-400">{key}</span>
-                            <span className="font-mono text-slate-200">
+                            <span className="text-muted-foreground">{key}</span>
+                            <span className="font-mono text-foreground">
                               {Array.isArray(value) ? value.join(", ") : String(value)}
                             </span>
                           </div>
@@ -223,19 +242,19 @@ export function InvestigationPanel({ actionId, onOpenChange }: InvestigationPane
                     </div>
                   </div>
                 ) : (
-                  <p className="text-sm text-slate-400">Heuristic anomaly detection triggered.</p>
+                  <p className="text-sm text-muted-foreground">Heuristic anomaly detection triggered.</p>
                 )}
               </section>
 
               {/* Section 2: Risk Score */}
               <section>
-                <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-400">Risk Score</h3>
-                <Separator className="my-3 bg-slate-800" />
+                <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Risk Score</h3>
+                <Separator className="my-3 bg-muted" />
                 <div className="flex items-baseline gap-2">
                   <span className={cn("text-5xl font-bold", riskColors?.text)}>{data.riskScore}</span>
-                  <span className="text-lg text-slate-500">/ 100</span>
+                  <span className="text-lg text-muted-foreground">/ 100</span>
                 </div>
-                <div className="mt-3 h-3 overflow-hidden rounded-full bg-slate-800">
+                <div className="mt-3 h-3 overflow-hidden rounded-full bg-muted">
                   <motion.div
                     className={cn("h-full rounded-full", riskColors?.bar)}
                     initial={{ width: 0 }}
@@ -247,10 +266,10 @@ export function InvestigationPanel({ actionId, onOpenChange }: InvestigationPane
 
               {/* Section 3: Affected Assets */}
               <section>
-                <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-400">Affected Assets</h3>
-                <Separator className="my-3 bg-slate-800" />
+                <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Affected Assets</h3>
+                <Separator className="my-3 bg-muted" />
                 {data.affectedAssets.length === 0 ? (
-                  <p className="text-sm text-slate-500">No specific systems identified.</p>
+                  <p className="text-sm text-muted-foreground">No specific systems identified.</p>
                 ) : (
                   <div className="flex flex-wrap gap-2">
                     {data.affectedAssets.map((asset) => {
@@ -259,7 +278,7 @@ export function InvestigationPanel({ actionId, onOpenChange }: InvestigationPane
                         <Badge
                           key={asset}
                           variant="outline"
-                          className="flex items-center gap-1.5 border-slate-700 px-3 py-1 text-sm text-slate-300"
+                          className="flex items-center gap-1.5 border-border px-3 py-1 text-sm text-muted-foreground"
                         >
                           <Icon className="h-3.5 w-3.5" />
                           {asset}
@@ -272,65 +291,65 @@ export function InvestigationPanel({ actionId, onOpenChange }: InvestigationPane
 
               {/* Section 4: AI Risk Assessment */}
               <section>
-                <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-400">AI Risk Assessment</h3>
-                <Separator className="my-3 bg-slate-800" />
-                <div className="rounded-lg border border-blue-900/50 bg-blue-950/20 p-4">
-                  <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-blue-300">
+                <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">AI Risk Assessment</h3>
+                <Separator className="my-3 bg-muted" />
+                <div className="rounded-lg border border-chart-1/30 bg-chart-1/10 p-4">
+                  <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-chart-1">
                     <Sparkles className="h-4 w-4" />
                     Security Briefing
                   </div>
-                  <p className="text-sm leading-relaxed text-slate-300">{data.aiExplanation}</p>
+                  <p className="text-sm leading-relaxed text-muted-foreground">{data.aiExplanation}</p>
                 </div>
               </section>
 
               {/* Action details */}
               <section>
-                <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-400">Action Details</h3>
-                <Separator className="my-3 bg-slate-800" />
+                <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Action Details</h3>
+                <Separator className="my-3 bg-muted" />
                 <dl className="space-y-2 text-sm">
                   <div className="flex items-center justify-between">
-                    <dt className="flex items-center gap-1.5 text-slate-400">
+                    <dt className="flex items-center gap-1.5 text-muted-foreground">
                       <Bot className="h-3.5 w-3.5" /> Agent
                     </dt>
-                    <dd className="font-medium text-slate-200">{data.agent?.name ?? "Unknown agent"}</dd>
+                    <dd className="font-medium text-foreground">{data.agent?.name ?? "Unknown agent"}</dd>
                   </div>
                   <div className="flex items-center justify-between">
-                    <dt className="text-slate-400">Action Type</dt>
-                    <dd className="font-medium text-slate-200">{data.action.action_type.replace(/_/g, " ")}</dd>
+                    <dt className="text-muted-foreground">Action Type</dt>
+                    <dd className="font-medium text-foreground">{data.action.action_type.replace(/_/g, " ")}</dd>
                   </div>
                   <div className="flex items-center justify-between">
-                    <dt className="flex items-center gap-1.5 text-slate-400">
+                    <dt className="flex items-center gap-1.5 text-muted-foreground">
                       <DollarSign className="h-3.5 w-3.5" /> Cost
                     </dt>
-                    <dd className="font-medium text-slate-200">
+                    <dd className="font-medium text-foreground">
                       {data.action.cost_usd !== null ? costFormatter.format(data.action.cost_usd) : "—"}
                     </dd>
                   </div>
                   <div className="flex items-center justify-between">
-                    <dt className="text-slate-400">Timestamp</dt>
-                    <dd className="font-medium text-slate-200">
+                    <dt className="text-muted-foreground">Timestamp</dt>
+                    <dd className="font-medium text-foreground">
                       {new Date(data.action.created_at).toLocaleString("en-US")}
                     </dd>
                   </div>
                 </dl>
                 <div className="mt-3 space-y-2">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Input Summary</p>
-                    <p className="mt-1 text-sm text-slate-300">{data.action.input_summary}</p>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Input Summary</p>
+                    <p className="mt-1 text-sm text-muted-foreground">{data.action.input_summary}</p>
                   </div>
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Output Summary</p>
-                    <p className="mt-1 text-sm text-slate-300">{data.action.output_summary}</p>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Output Summary</p>
+                    <p className="mt-1 text-sm text-muted-foreground">{data.action.output_summary}</p>
                   </div>
                 </div>
               </section>
 
               {/* Section 5: Similar Incidents */}
               <section>
-                <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-400">Similar Incidents</h3>
-                <Separator className="my-3 bg-slate-800" />
+                <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Similar Incidents</h3>
+                <Separator className="my-3 bg-muted" />
                 {data.similarIncidents.length === 0 ? (
-                  <p className="text-sm text-slate-500">No semantically similar incidents found.</p>
+                  <p className="text-sm text-muted-foreground">No semantically similar incidents found.</p>
                 ) : (
                   <div className="space-y-2">
                     {data.similarIncidents.map((incident) => (
@@ -338,12 +357,12 @@ export function InvestigationPanel({ actionId, onOpenChange }: InvestigationPane
                         key={incident.id}
                         type="button"
                         onClick={() => setHistory((prev) => [...prev, incident.id])}
-                        className="w-full rounded-md border border-slate-800 bg-slate-950/40 p-3 text-left transition-colors hover:border-slate-700 hover:bg-slate-800/50"
+                        className="w-full rounded-md border border-border bg-background/40 p-3 text-left transition-colors hover:border-accent/50 hover:bg-secondary/50"
                       >
                         <div className="flex items-center justify-between gap-2">
-                          <span className="text-sm font-medium text-slate-200">{incident.agentName}</span>
+                          <span className="text-sm font-medium text-foreground">{incident.agentName}</span>
                           <div className="flex items-center gap-2">
-                            <span className="font-mono text-xs text-slate-400">
+                            <span className="font-mono text-xs text-muted-foreground">
                               {similarityPercent(incident.similarity)}% match
                             </span>
                             <Badge variant="outline" className={policyResultBadgeClass(incident.policyResult)}>
@@ -351,8 +370,8 @@ export function InvestigationPanel({ actionId, onOpenChange }: InvestigationPane
                             </Badge>
                           </div>
                         </div>
-                        <p className="mt-1 line-clamp-2 text-sm text-slate-400">{incident.inputSummary}</p>
-                        <p className="mt-1 flex items-center gap-1 text-xs text-slate-500">
+                        <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{incident.inputSummary}</p>
+                        <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
                           <AlertTriangle className="h-3 w-3" />
                           {formatRelativeTime(incident.createdAt)} &middot; click to investigate
                         </p>
