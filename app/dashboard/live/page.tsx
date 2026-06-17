@@ -1,13 +1,33 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Activity, Bot, DollarSign, ShieldAlert, ShieldCheck, TrendingDown, Zap } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Activity, Bot, DollarSign, Play, ShieldAlert, ShieldCheck, TrendingDown, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn, formatRelativeTime, policyResultBadgeClass } from "@/lib/utils";
 import { useTenants } from "@/lib/tenant";
 import type { LiveEvent, LiveKpis } from "@/lib/db/live-stream";
+
+// ── DynamoDB live-stream response shape ─────────────────────────────────────
+
+interface DynamoEvent {
+  agentId: string;
+  timestamp: string;
+  eventType: string;
+  tenantId: string;
+  payload: Record<string, unknown>;
+}
+
+interface DynamoStreamResponse {
+  events: DynamoEvent[];
+  agentsOnline: number;
+  actionsPerMin: number;
+  blockedToday: number;
+  governanceScore: number;
+  updatedAt: string;
+}
 
 const MAX_EVENTS = 150;
 
@@ -125,7 +145,7 @@ function policyLabel(policyRuleType: string | null): string | null {
   return policyRuleType.replace(/_/g, " ");
 }
 
-function EventRow({ event, isNew }: { event: LiveEvent; isNew: boolean }) {
+function EventRow({ event, isNew, onInvestigate }: { event: LiveEvent; isNew: boolean; onInvestigate: () => void }) {
   const [highlight, setHighlight] = useState(isNew);
 
   useEffect(() => {
@@ -194,9 +214,16 @@ function EventRow({ event, isNew }: { event: LiveEvent; isNew: boolean }) {
         </div>
       </div>
 
-      {/* Timestamp */}
-      <div className="flex-shrink-0 text-right">
+      {/* Timestamp + replay link */}
+      <div className="flex shrink-0 flex-col items-end gap-1">
         <span className="text-xs text-muted-foreground">{formatRelativeTime(event.createdAt)}</span>
+        <button
+          onClick={onInvestigate}
+          className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground/60 transition-colors hover:bg-secondary hover:text-foreground"
+        >
+          <Play className="h-2.5 w-2.5" />
+          Replay
+        </button>
       </div>
     </div>
   );
@@ -204,104 +231,120 @@ function EventRow({ event, isNew }: { event: LiveEvent; isNew: boolean }) {
 
 export default function LiveStreamPage() {
   const { selectedTenantId, loading: tenantsLoading } = useTenants();
+  const router = useRouter();
+
   const [events, setEvents] = useState<LiveEvent[]>([]);
   const [newIds, setNewIds] = useState<Set<string>>(new Set());
   const [kpis, setKpis] = useState<LiveKpis | null>(null);
   const [kpisLoading, setKpisLoading] = useState(true);
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+
+  // Tracks DynamoDB composite keys (agentId#timestamp) seen so far
+  const seenKeysRef = useRef(new Set<string>());
+  const isFirstPollRef = useRef(true);
 
   useEffect(() => {
+    // Reset on tenant change
+    seenKeysRef.current = new Set();
+    isFirstPollRef.current = true;
+    setEvents([]);
+    setKpis(null);
+    setKpisLoading(true);
+    setConnected(false);
+    setLastUpdated(null);
+
     if (!selectedTenantId) return;
-    const tenantId = selectedTenantId;
+
+    const headers: Record<string, string> = { "x-tenant-id": selectedTenantId };
     let cancelled = false;
-    let controller: AbortController | null = new AbortController();
 
-    async function streamEvents() {
-      setConnected(false);
-      setError(null);
+    function mapEvent(e: DynamoEvent): { key: string; display: LiveEvent } {
+      const key = `${e.agentId}#${e.timestamp}`;
+      const actionId =
+        typeof e.payload["actionId"] === "string" ? e.payload["actionId"] : key;
+      return {
+        key,
+        display: {
+          id: actionId,
+          agentName: (typeof e.payload["inputSummary"] === "string"
+            ? e.agentId
+            : e.agentId
+          ).slice(0, 12),
+          actionType: e.eventType,
+          policyResult: (typeof e.payload["policyResult"] === "string"
+            ? e.payload["policyResult"]
+            : "allowed") as LiveEvent["policyResult"],
+          policyRuleType: null,
+          costUsd:
+            typeof e.payload["costUsd"] === "number" ? e.payload["costUsd"] : null,
+          inputSummary:
+            typeof e.payload["inputSummary"] === "string"
+              ? e.payload["inputSummary"]
+              : `${e.eventType} event from agent ${e.agentId.slice(0, 8)}`,
+          createdAt: e.timestamp,
+        },
+      };
+    }
 
+    async function poll() {
+      if (cancelled) return;
       try {
-        const response = await fetch("/api/live/stream", {
-          headers: { "x-tenant-id": tenantId },
-          signal: controller?.signal,
-        });
+        const res = await fetch("/api/live-stream?limit=100", { headers });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = (await res.json()) as DynamoStreamResponse;
+        if (cancelled) return;
 
-        if (!response.ok || !response.body) {
-          if (!cancelled) setError("Failed to connect to live stream");
-          return;
-        }
+        const mapped = data.events.map(mapEvent);
 
-        if (!cancelled) setConnected(true);
-
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "";
-
-        while (!cancelled) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() ?? "";
-
-          let eventName = "";
-          let dataLine = "";
-
-          for (const line of lines) {
-            if (line.startsWith("event: ")) {
-              eventName = line.slice(7).trim();
-            } else if (line.startsWith("data: ")) {
-              dataLine = line.slice(6).trim();
-            } else if (line === "" && eventName && dataLine) {
-              try {
-                const parsed: unknown = JSON.parse(dataLine);
-
-                if (eventName === "init" && Array.isArray(parsed)) {
-                  const initEvents = parsed as LiveEvent[];
-                  if (!cancelled) {
-                    setEvents(initEvents);
-                    setKpisLoading(false);
-                  }
-                } else if (eventName === "events" && Array.isArray(parsed)) {
-                  const incoming = parsed as LiveEvent[];
-                  if (incoming.length > 0 && !cancelled) {
-                    const ids = new Set(incoming.map((e) => e.id));
-                    setNewIds(ids);
-                    setEvents((prev) => [...incoming, ...prev].slice(0, MAX_EVENTS));
-                    setTimeout(() => { if (!cancelled) setNewIds(new Set()); }, 2500);
-                  }
-                } else if (eventName === "kpis" && !cancelled) {
-                  setKpis(parsed as LiveKpis);
-                  setKpisLoading(false);
-                }
-              } catch {
-                // ignore malformed SSE data
-              }
-
-              eventName = "";
-              dataLine = "";
-            }
+        if (isFirstPollRef.current) {
+          // Initial load — show all without new-highlight
+          setEvents(mapped.map((m) => m.display));
+          mapped.forEach((m) => seenKeysRef.current.add(m.key));
+          isFirstPollRef.current = false;
+          setKpisLoading(false);
+        } else {
+          // Subsequent poll — highlight only genuinely new events
+          const fresh = mapped.filter((m) => !seenKeysRef.current.has(m.key));
+          if (fresh.length > 0) {
+            const freshIds = new Set(fresh.map((m) => m.display.id));
+            setNewIds(freshIds);
+            setEvents((prev) => {
+              const existing = new Set(prev.map((e) => e.id));
+              const toAdd = fresh
+                .map((m) => m.display)
+                .filter((e) => !existing.has(e.id));
+              return [...toAdd, ...prev].slice(0, MAX_EVENTS);
+            });
+            fresh.forEach((m) => seenKeysRef.current.add(m.key));
+            setTimeout(() => { if (!cancelled) setNewIds(new Set()); }, 2500);
           }
         }
+
+        // Map DynamoDB KPI fields to LiveKpis shape (actionsPerMin → actionsLastMinute)
+        setKpis({
+          agentsOnline: data.agentsOnline,
+          actionsLastMinute: data.actionsPerMin,
+          blockedToday: data.blockedToday,
+          governanceScore: data.governanceScore,
+        });
+        setLastUpdated(data.updatedAt);
+        setConnected(true);
+        setError(null);
       } catch {
         if (!cancelled) {
-          setError("Stream disconnected. Reconnecting...");
           setConnected(false);
-          setTimeout(() => {
-            if (!cancelled) streamEvents();
-          }, 3000);
+          setError("Polling disconnected. Retrying...");
         }
       }
     }
 
-    streamEvents();
-
+    poll();
+    const interval = setInterval(poll, 3_000);
     return () => {
       cancelled = true;
-      controller?.abort();
-      controller = null;
+      clearInterval(interval);
     };
   }, [selectedTenantId]);
 
@@ -333,16 +376,25 @@ export default function LiveStreamPage() {
               )}
             />
             <span className={cn("text-xs font-medium", connected ? "text-success" : "text-muted-foreground")}>
-              {connected ? "Live" : "Connecting..."}
+              {connected ? "Connected to DynamoDB Hot Path" : "Connecting..."}
             </span>
           </div>
           <Badge variant="outline" className="border-chart-1/30 bg-chart-1/10 text-chart-1">
             Real-time
           </Badge>
         </div>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Live AI operations feed — Aurora PostgreSQL, updated every 3 seconds.
-        </p>
+        <div className="mt-1 flex flex-wrap items-center gap-4">
+          <p className="text-sm text-muted-foreground">
+            Live AI operations feed — DynamoDB hot path, polled every 3 seconds.
+          </p>
+          {lastUpdated && (
+            <span className="font-mono text-xs text-muted-foreground/50">
+              Last Updated: {new Date(lastUpdated).toLocaleTimeString("en-US", {
+                hour: "2-digit", minute: "2-digit", second: "2-digit",
+              })}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* KPI Strip */}
@@ -383,7 +435,12 @@ export default function LiveStreamPage() {
           ) : (
             <div className="max-h-[70vh] space-y-2 overflow-y-auto p-4">
               {events.map((event) => (
-                <EventRow key={event.id} event={event} isNew={newIds.has(event.id)} />
+                <EventRow
+                  key={event.id}
+                  event={event}
+                  isNew={newIds.has(event.id)}
+                  onInvestigate={() => router.push(`/dashboard/replay/${event.id}`)}
+                />
               ))}
             </div>
           )}

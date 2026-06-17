@@ -8,6 +8,7 @@ import {
   insertAgentAction,
 } from "@/lib/db/queries";
 import { isExecutionPaused } from "@/lib/db/emergency-controls";
+import { putAgentEvent } from "@/lib/dynamodb";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -112,6 +113,22 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         embedding: null,
       });
 
+      // Fire-and-forget: DynamoDB hot-path mirror — never blocks the Aurora write.
+      putAgentEvent({
+        agentId:   body.agentId,
+        eventType: body.actionType,
+        tenantId,
+        payload: {
+          actionId:    action.id,
+          policyResult: "blocked",
+          policyId:    evaluation.matchedPolicyId ?? null,
+          inputSummary: body.inputSummary,
+          costUsd:     body.costUsd,
+        },
+      }).catch((err: unknown) => {
+        console.error("[dynamodb] putAgentEvent failed (blocked)", err);
+      });
+
       return NextResponse.json(
         {
           blocked: true,
@@ -137,6 +154,22 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       policy_result: evaluation.result,
       cost_usd: body.costUsd,
       embedding,
+    });
+
+    // Fire-and-forget: DynamoDB hot-path mirror — never blocks the Aurora write.
+    putAgentEvent({
+      agentId:   body.agentId,
+      eventType: body.actionType,
+      tenantId,
+      payload: {
+        actionId:    action.id,
+        policyResult: action.policy_result,
+        policyId:    evaluation.matchedPolicyId ?? null,
+        inputSummary: body.inputSummary,
+        costUsd:     body.costUsd,
+      },
+    }).catch((err: unknown) => {
+      console.error("[dynamodb] putAgentEvent failed", err);
     });
 
     return NextResponse.json({

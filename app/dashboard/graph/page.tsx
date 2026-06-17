@@ -355,7 +355,7 @@ function GraphCanvas({ graph }: { graph: CausalGraph }) {
           size={1}
           color="rgba(148,163,184,0.07)"
         />
-        <Controls />
+        <Controls showInteractive={false} />
       </ReactFlow>
     </div>
   );
@@ -547,7 +547,10 @@ export default function CausalGraphPage() {
                 Recent Incidents
               </CardTitle>
             </CardHeader>
-            <CardContent className="max-h-[520px] overflow-y-auto p-0">
+            <CardContent
+              className="max-h-[520px] overflow-y-auto p-0"
+              style={{ scrollbarColor: "rgba(255,255,255,0.14) rgba(15,23,42,0.6)" }}
+            >
               {actionsLoading ? (
                 <div className="space-y-2 p-3">
                   {Array.from({ length: 6 }).map((_, i) => (

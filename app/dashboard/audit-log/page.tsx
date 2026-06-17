@@ -1,11 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   Database,
   DollarSign,
   Eye,
+  Film,
   ListChecks,
   ShieldAlert,
   type LucideIcon,
@@ -97,6 +99,8 @@ export default function DashboardPage() {
     error: tenantsError,
     refetch: refetchTenants,
   } = useTenants();
+
+  const router = useRouter();
 
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
@@ -343,15 +347,26 @@ export default function DashboardPage() {
                           {formatRelativeTime(action.createdAt)}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setInvestigateId(action.id)}
-                            className="border-border text-foreground hover:bg-secondary"
-                          >
-                            <InvestigateIcon policyResult={action.policyResult} className="h-3.5 w-3.5" />
-                            Investigate
-                          </Button>
+                          <div className="flex items-center justify-end gap-1.5">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setInvestigateId(action.id)}
+                              className="border-border text-foreground hover:bg-secondary"
+                            >
+                              <InvestigateIcon policyResult={action.policyResult} className="h-3.5 w-3.5" />
+                              Investigate
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => router.push(`/dashboard/replay/${action.id}`)}
+                              className="text-muted-foreground hover:text-foreground"
+                              title="Black Box Replay"
+                            >
+                              <Film className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );

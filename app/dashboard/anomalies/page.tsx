@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   AlertTriangle,
@@ -23,7 +24,6 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { InvestigationPanel } from "@/components/investigation-panel";
 import { formatRelativeTime, policyResultBadgeClass, truncateMessage } from "@/lib/utils";
 import { useTenants } from "@/lib/tenant";
 import type { PolicyResult } from "@/lib/db/types";
@@ -177,6 +177,7 @@ function ResultCard({
 
 export default function AnomaliesPage() {
   const { selectedTenantId } = useTenants();
+  const router = useRouter();
 
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -185,7 +186,6 @@ export default function AnomaliesPage() {
   const [hasSearched, setHasSearched] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [compareToKeywords, setCompareToKeywords] = useState(false);
-  const [investigateId, setInvestigateId] = useState<string | null>(null);
 
   async function runSearch(searchQuery: string) {
     if (!selectedTenantId || searchQuery.trim() === "") return;
@@ -354,14 +354,12 @@ export default function AnomaliesPage() {
                 result={result}
                 index={index}
                 onFindSimilar={handleFindSimilar}
-                onInvestigate={setInvestigateId}
+                onInvestigate={(id) => router.push(`/dashboard/replay/${id}`)}
               />
             ))}
           </div>
         ) : null}
       </div>
-
-      <InvestigationPanel actionId={investigateId} onOpenChange={(open) => !open && setInvestigateId(null)} />
     </div>
   );
 }

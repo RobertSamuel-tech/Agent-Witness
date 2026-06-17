@@ -1,25 +1,23 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   AlertOctagon,
   AlertTriangle,
   Bot,
-  DollarSign,
   Radar,
   ShieldAlert,
   ShieldCheck,
-  Sparkles,
   type LucideIcon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
-import { cn, formatRelativeTime, policyResultBadgeClass, truncateMessage } from "@/lib/utils";
+import { cn, formatRelativeTime, truncateMessage } from "@/lib/utils";
 import { useTenants } from "@/lib/tenant";
 import type { ThreatIncident, ThreatMetrics, ThreatSeverity } from "@/lib/db/threat-timeline";
 
@@ -155,11 +153,11 @@ function IncidentCard({
 
 export default function ThreatsPage() {
   const { selectedTenantId, loading: tenantsLoading, error: tenantsError } = useTenants();
+  const router = useRouter();
 
   const [data, setData] = useState<ThreatsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeIncident, setActiveIncident] = useState<ThreatIncident | null>(null);
 
   useEffect(() => {
     if (!selectedTenantId) return;
@@ -299,93 +297,13 @@ export default function ThreatsPage() {
                 key={incident.incidentId}
                 incident={incident}
                 index={index}
-                onInvestigate={setActiveIncident}
+                onInvestigate={(inc) => router.push(`/dashboard/replay/${inc.incidentId}`)}
               />
             ))}
           </div>
         )}
       </section>
 
-      {/* Investigation panel */}
-      <Sheet open={activeIncident !== null} onOpenChange={(open) => !open && setActiveIncident(null)}>
-        <SheetContent className="border-border bg-card text-foreground">
-          {activeIncident ? (
-            <>
-              <SheetHeader>
-                <SheetTitle className="text-foreground">Incident Investigation</SheetTitle>
-                <SheetDescription className="text-muted-foreground">
-                  {formatRelativeTime(activeIncident.timestamp)} &middot; {activeIncident.incidentId.slice(0, 8)}
-                </SheetDescription>
-              </SheetHeader>
-
-              <div className="space-y-4 overflow-y-auto px-4 pb-4">
-                <Badge variant="outline" className={severityBadgeClass(activeIncident.severity)}>
-                  {activeIncident.severity}
-                </Badge>
-
-                <dl className="space-y-3 text-sm">
-                  <div className="flex items-center justify-between">
-                    <dt className="text-muted-foreground">Agent</dt>
-                    <dd className="font-medium text-foreground">{activeIncident.agentName}</dd>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <dt className="text-muted-foreground">Action Type</dt>
-                    <dd className="font-medium text-foreground">
-                      {activeIncident.actionType.replace(/_/g, " ")}
-                    </dd>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <dt className="text-muted-foreground">Policy</dt>
-                    <dd className="font-medium text-foreground">{activeIncident.policyName ?? "—"}</dd>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <dt className="text-muted-foreground">Cost</dt>
-                    <dd className="flex items-center gap-1 font-medium text-foreground">
-                      <DollarSign className="h-3 w-3 text-success" />
-                      {activeIncident.costUsd !== null ? costFormatter.format(activeIncident.costUsd) : "—"}
-                    </dd>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <dt className="text-muted-foreground">Timestamp</dt>
-                    <dd className="font-medium text-foreground">
-                      {new Date(activeIncident.timestamp).toLocaleString("en-US")}
-                    </dd>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <dt className="text-muted-foreground">Policy Result</dt>
-                    <dd>
-                      <Badge variant="outline" className={policyResultBadgeClass(activeIncident.policyResult)}>
-                        {activeIncident.policyResult}
-                      </Badge>
-                    </dd>
-                  </div>
-                </dl>
-
-                <Separator className="bg-muted" />
-
-                <div>
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Input Summary</h4>
-                  <p className="mt-1 text-sm text-muted-foreground">{activeIncident.inputSummary}</p>
-                </div>
-                <div>
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Output Summary</h4>
-                  <p className="mt-1 text-sm text-muted-foreground">{activeIncident.outputSummary}</p>
-                </div>
-
-                <Separator className="bg-muted" />
-
-                <div className="rounded-lg border border-chart-1/30 bg-chart-1/10 p-4">
-                  <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-chart-1">
-                    <Sparkles className="h-4 w-4" />
-                    AI Explanation
-                  </div>
-                  <p className="text-sm leading-relaxed text-muted-foreground">{activeIncident.explanation}</p>
-                </div>
-              </div>
-            </>
-          ) : null}
-        </SheetContent>
-      </Sheet>
     </div>
   );
 }
