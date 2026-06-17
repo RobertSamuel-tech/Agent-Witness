@@ -54,9 +54,16 @@
 *Real-time incident reconstruction with causal chains, policy triggers, and automated risk classification.*
 
 ### Agent Trust Profile
-<!-- TODO: Replace with actual screenshot -->
 ![Agent Trust Profile](docs/screenshots/agent-trust-profile.png)
 *Per-agent behavioral fingerprinting with trust score forecasting, violation breakdown, and remediation playbooks.*
+
+### Agent Behavior Fingerprint
+![Agent Behavior Fingerprint](docs/screenshots/agent-behavior-fingerprint.png)
+*Radar chart scoring each agent across Compliance, Cost Control, Data Safety, Tool Safety, Reliability, and Autonomy dimensions.*
+
+### AI Trust Forecast
+![AI Trust Forecast](docs/screenshots/ai-trust-forecast.png)
+*ML-powered 7-day trust score projection. Historical trend (solid) and forecast (dashed) with confidence percentage and critical incident probability.*
 
 ### Policy Engine
 <!-- TODO: Replace with actual screenshot -->
@@ -77,6 +84,10 @@
 <!-- TODO: Replace with actual screenshot -->
 ![Control Center](docs/screenshots/control-center.png)
 *Emergency kill switch with global agent pause/resume. Audit-logged executive controls for immediate threat response.*
+
+### Platform Landing Page
+![Platform Landing Page](docs/screenshots/home-page.png)
+*AgentWitness entry point: live policy violation feed, feature overview, and direct entry into the governance dashboard.*
 
 </details>
 
