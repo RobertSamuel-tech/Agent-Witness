@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, AlertTriangle, Bot, Brain, CreditCard, Menu, Power, Radar, ScrollText, Share2, Shield, ShieldAlert } from "lucide-react";
+import { Activity, AlertTriangle, BarChart3, Bot, Brain, CreditCard, Menu, Power, Radar, ScrollText, Share2, Shield, ShieldAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTenants } from "@/lib/tenant";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +30,7 @@ interface HealthResponse {
 }
 
 const NAV_ITEMS = [
+  { href: "/dashboard/executive",   label: "Executive",   icon: BarChart3   },
   { href: "/dashboard/risk-center", label: "Risk Center", icon: ShieldAlert },
   { href: "/dashboard/agents", label: "Agents", icon: Bot },
   { href: "/dashboard/threats", label: "Threat Timeline", icon: Radar },
@@ -46,7 +47,7 @@ function getCurrentRouteLabel(pathname: string): string {
   if (pathname.startsWith("/dashboard/replay/")) return "AI Flight Recorder";
   if (pathname.startsWith("/dashboard/agents/")) return "Agent Trust Profile";
   const match = NAV_ITEMS.find((item) => item.href === pathname);
-  return match?.label ?? "Risk Center";
+  return match?.label ?? "Executive";
 }
 
 function isNavActive(itemHref: string, pathname: string): boolean {
