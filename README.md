@@ -26,7 +26,6 @@
 <details>
 <summary>▶ 📷 Click to view screenshots</summary>
 <br>
-</div>
 
 
 ### Executive Dashboard
@@ -80,6 +79,8 @@
 *Emergency kill switch with global agent pause/resume. Audit-logged executive controls for immediate threat response.*
 
 </details>
+
+</div>
 
 ---
 
