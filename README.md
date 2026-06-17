@@ -1,10 +1,6 @@
 <div align="center">
 
-<br />
-
----
--AGENT WITNESS
----
+# AGENT WITNESS
 
 ### The AI Control Plane for the Agentic Enterprise
 
