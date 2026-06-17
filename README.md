@@ -169,6 +169,17 @@ graph LR
 
 AgentWitness is built as a production-grade Next.js 16.2 monorepo with deliberate separation between the real-time ingestion layer, the policy engine, and the compliance reporting layer.
 
+### Architecture Highlights
+
+- Real-time AI agent governance platform
+- Amazon Aurora PostgreSQL as immutable audit system of record
+- pgvector + HNSW for semantic incident search
+- Row Level Security (RLS) for multi-tenant isolation
+- DynamoDB hot-path event streaming
+- Automated SOC 2 / EU AI Act / ISO 27001 evidence generation
+- Deterministic policy enforcement engine
+- Executive governance and regulatory exposure dashboards
+
 ```text
 agent-witness/
 ├── app/
@@ -176,7 +187,7 @@ agent-witness/
 │   │   ├── ingest/              # → Aurora PostgreSQL (immutable audit trail)
 │   │   │                        #   Primary ingestion endpoint. Every agent action is
 │   │   │                        #   written to Aurora with tenant-scoped RLS enforcement.
-│   │   ├── simulate/            # → Aurora PostgreSQL (live demo seeding)
+│   │   ├── simulate/            # → Aurora PostgreSQL (live event seeding)
 │   │   │                        #   Respects the emergency kill-switch. Generates
 │   │   │                        #   realistic B2B agent traffic for real-time evaluation.
 │   │   ├── semantic-search/     # → Aurora pgvector HNSW index
@@ -224,7 +235,7 @@ agent-witness/
 │   │   │                        #   count, row count. Used by judges and monitoring.
 │   │   └── bootstrap/           # → Aurora PostgreSQL (schema provisioning)
 │   │                            #   Idempotent schema setup: tables, RLS policies,
-│   │                            #   pgvector extension, HNSW index, demo tenant seed.
+│   │                            #   pgvector extension, HNSW index, tenant seed.
 │   └── dashboard/
 │       ├── live/                # Real-time agent stream (polls /api/live-events)
 │       ├── anomalies/           # Semantic anomaly detection (pgvector search UI)
@@ -252,7 +263,7 @@ agent-witness/
 │   │   ├── threat-timeline.ts   # Threat incident queries with causal chain assembly
 │   │   ├── investigation.ts     # Forensic replay data retrieval (AI Flight Recorder)
 │   │   ├── compliance-reports.ts# Compliance evidence aggregation for PDF generation
-│   │   ├── simulate.ts          # Demo event seeding queries
+│   │   ├── simulate.ts          # Event seeding queries
 │   │   └── bootstrap.ts         # Idempotent schema and policy provisioning
 │   ├── ai/
 │   │   ├── embedder.ts          # OpenRouter embedding API + SHA-256 fallback
@@ -270,6 +281,23 @@ agent-witness/
 ├── ARCHITECTURE.md              # Mermaid system diagram + AWS database usage narrative
 └── README.md                    # Hackathon submission document (this file)
 ```
+
+### Why This Architecture Matters
+
+Traditional observability platforms store logs.
+
+AgentWitness stores decisions.
+
+Every agent action becomes:
+
+1. An immutable audit record in Aurora PostgreSQL
+2. A searchable semantic event via pgvector
+3. A compliance artifact available for auditors
+4. A governance signal used to compute trust scores and risk exposure
+
+This architecture allows organizations to reconstruct exactly why an AI agent acted, what policy was triggered, what data was accessed, and what compliance controls were enforced.
+
+The result is a complete governance layer for autonomous AI systems rather than another monitoring dashboard.
 
 ---
 
@@ -599,7 +627,7 @@ agent-witness/
 ├── app/
 │   ├── api/
 │   │   ├── ingest/              # Primary agent action ingestion endpoint
-│   │   ├── simulate/            # Demo event generator (respects kill-switch)
+│   │   ├── simulate/            # Event generator (respects kill-switch)
 │   │   ├── semantic-search/     # pgvector HNSW intent search
 │   │   ├── compliance/report/   # 10-page PDF compliance package
 │   │   ├── executive/           # Governance KPI aggregation
