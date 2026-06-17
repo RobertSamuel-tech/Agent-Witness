@@ -6,7 +6,7 @@
 
 **Real-time policy enforcement · Causal investigation · Governance intelligence<br/>for every action your AI agents take — in production, at scale.**
 
-<br/>
+
 
 [![Build](https://img.shields.io/badge/build-passing-22c55e?style=flat-square&logo=github-actions&logoColor=white)](https://github.com)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178c6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
