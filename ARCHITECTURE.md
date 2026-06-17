@@ -6,45 +6,45 @@ AgentWitness is a multi-tenant AI governance platform that ingests, evaluates, s
 
 ```mermaid
 flowchart TD
-    subgraph Agents["AI Agents (Customer)"]
-        A1[sales-gpt\nOpenAI]
-        A2[billing-agent\nAutogen]
-        A3[compliance-agent\nOpenAI]
-        A4[onboarding-agent\nCrewAI]
-        A5[support-bot\nLangChain]
+    subgraph Agents["AI Agents — Customer"]
+        A1["sales-gpt · OpenAI"]
+        A2["billing-agent · AutoGen"]
+        A3["compliance-agent · OpenAI"]
+        A4["onboarding-agent · CrewAI"]
+        A5["support-bot · LangChain"]
     end
 
     subgraph Ingest["Next.js API — Ingest Layer"]
-        I1[POST /api/ingest]
-        I2[Policy Engine\ndeterministic, no LLM]
-        I3[Embedder\nOpenRouter text-embedding-3-small]
+        I1["POST /api/ingest"]
+        I2["Policy Engine — deterministic, no LLM"]
+        I3["Embedder — OpenRouter text-embedding-3-small"]
     end
 
-    subgraph Aurora["Aurora PostgreSQL (AWS)"]
-        DB1[(agent_actions\npgvector HNSW index)]
+    subgraph Aurora["Aurora PostgreSQL — AWS"]
+        DB1[("agent_actions — pgvector HNSW index")]
         DB2[(agents)]
         DB3[(policies)]
         DB4[(emergency_controls)]
         DB5[(tenants)]
     end
 
-    subgraph Frontend["Next.js Frontend (Vercel)"]
-        F1[/dashboard/live\nLive Agent Stream]
-        F2[/dashboard/anomalies\nSemantic Search]
-        F3[/dashboard/risk-center\nGovernance & PDF]
-        F4[/dashboard/graph\nCausal Investigation]
-        F5[/dashboard/control-center\nGlobal Kill Switch]
-        F6[/dashboard/threats\nThreat Timeline]
-        F7[/dashboard/audit-log\nFull Audit Trail]
+    subgraph Frontend["Next.js Frontend — Vercel"]
+        F1["Live Agent Stream"]
+        F2["Semantic Search"]
+        F3["Governance and PDF"]
+        F4["Causal Investigation"]
+        F5["Global Kill Switch"]
+        F6["Threat Timeline"]
+        F7["Full Audit Trail"]
     end
 
     subgraph APIs["Next.js API — Read Layer"]
-        R1[GET /api/live-events\nAurora poll, incremental]
-        R2[POST /api/search\npgvector cosine similarity]
-        R3[GET /api/executive\ngovernance KPIs]
-        R4[POST /api/compliance/report\nPDF generation via pdfkit]
-        R5[GET /api/health\nAurora + pgvector + RLS]
-        R6[POST /api/simulate\nEvent generator]
+        R1["GET /api/live-events — Aurora poll, incremental"]
+        R2["POST /api/search — pgvector cosine similarity"]
+        R3["GET /api/executive — governance KPIs"]
+        R4["POST /api/compliance/report — PDF via pdfkit"]
+        R5["GET /api/health — Aurora + pgvector + RLS"]
+        R6["POST /api/simulate — Event generator"]
     end
 
     Agents -->|POST action + metadata| I1
