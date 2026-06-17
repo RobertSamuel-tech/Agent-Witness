@@ -23,8 +23,6 @@
 <br/>
 ---
 
-## 📸 Product Screenshots
-
 <details>
 <summary>▶ 📷 Click to view screenshots</summary>
 <br>
