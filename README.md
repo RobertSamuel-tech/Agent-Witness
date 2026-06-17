@@ -26,6 +26,8 @@
 <details>
 <summary>▶ 📷 Click to view screenshots</summary>
 <br>
+</div>
+
 
 ### Executive Dashboard
 <!-- TODO: Replace with actual screenshot -->
