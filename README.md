@@ -27,16 +27,45 @@
 <summary>▶ 📷 Click to view screenshots</summary>
 <br>
 
+### Platform Landing Page
+![Platform Landing Page](docs/screenshots/home-page.png)
+*AgentWitness entry point: live policy violation feed, core value propositions, and direct access to the governance dashboard.*
 
 ### Executive Dashboard
-<!-- TODO: Replace with actual screenshot -->
 ![Executive Dashboard](docs/screenshots/executive-dashboard.png)
-*Real-time governance intelligence: regulatory exposure, compliance readiness, and trust trends across all monitored AI agents.*
+*Real-time governance intelligence: $221K potential regulatory exposure, $58K avoided loss, compliance readiness across SOC 2, EU AI Act, ISO 27001, and NIST AI RMF.*
+
+### Agent Intelligence
+![Agent Intelligence](docs/screenshots/agent-trust-profile.png)
+*Per-agent trust scores, compliance rates, violation percentages, and 7-day trend sparklines across all monitored AI agents.*
+
+### Agent Behavior Fingerprint & AI Trust Forecast
+![Agent Behavior Fingerprint](docs/screenshots/agent-behavior-fingerprint.png)
+*Left: radar chart scoring each agent across Compliance, Cost Control, Data Safety, Tool Safety, Reliability, and Autonomy. Right: ML-powered 7-day trust score projection with confidence and critical incident probability.*
 
 ### Live Agent Stream
-<!-- TODO: Replace with actual screenshot -->
 ![Live Agent Stream](docs/screenshots/live-stream.png)
-*DynamoDB-powered hot path showing real-time agent actions as they happen. Zero-latency monitoring with live governance scoring.*
+*Real-time operations feed — Aurora PostgreSQL polled every 3 seconds. Live governance scoring, blocked/allowed classification, and per-action cost tracking.*
+
+### Audit Log
+![Audit Log](docs/screenshots/audit-log.png)
+*Immutable audit trail: 315 total actions, 52 blocked, 47 flagged. Full input summaries, agent identity, action type, and one-click investigation for every event.*
+
+### Threat Timeline
+![Threat Timeline](docs/screenshots/threat-timeline.png)
+*Real-time incident reconstruction: 55 critical incidents, 48 high-risk events. Step-by-step causal chain for each blocked action from initiation to enforcement.*
+
+### Causal Investigation Graph
+![Causal Graph](docs/screenshots/causal-graph.png)
+*Visual reconstruction of agent → action → policy → outcome chains. Billing-agent Data Access blocked by Data Masking policy at Risk 100/100.*
+
+### Control Center
+![Control Center](docs/screenshots/control-center.png)
+*Emergency kill switch with global agent pause/resume. Execution Active status, audit-logged control ID, and HTTP 423 enforcement across all ingest endpoints.*
+
+### Plans & Billing
+![Plans & Billing](docs/screenshots/plans-billing.png)
+*SaaS pricing tiers: Starter ($299/mo, 5 agents), Growth ($999/mo, 50 agents + semantic search), Enterprise (custom, unlimited agents + SSO/SAML + compliance reports).*
 
 ### AI Flight Recorder
 <!-- TODO: Replace with actual screenshot -->
@@ -48,23 +77,6 @@
 ![Semantic Search](docs/screenshots/semantic-search.png)
 *Aurora PostgreSQL pgvector-powered semantic search. Find incidents by intent, not keywords. HNSW index for sub-second retrieval.*
 
-### Threat Timeline
-<!-- TODO: Replace with actual screenshot -->
-![Threat Timeline](docs/screenshots/threat-timeline.png)
-*Real-time incident reconstruction with causal chains, policy triggers, and automated risk classification.*
-
-### Agent Trust Profile
-![Agent Trust Profile](docs/screenshots/agent-trust-profile.png)
-*Per-agent behavioral fingerprinting with trust score forecasting, violation breakdown, and remediation playbooks.*
-
-### Agent Behavior Fingerprint
-![Agent Behavior Fingerprint](docs/screenshots/agent-behavior-fingerprint.png)
-*Radar chart scoring each agent across Compliance, Cost Control, Data Safety, Tool Safety, Reliability, and Autonomy dimensions.*
-
-### AI Trust Forecast
-![AI Trust Forecast](docs/screenshots/ai-trust-forecast.png)
-*ML-powered 7-day trust score projection. Historical trend (solid) and forecast (dashed) with confidence percentage and critical incident probability.*
-
 ### Policy Engine
 <!-- TODO: Replace with actual screenshot -->
 ![Policy Engine](docs/screenshots/policy-engine.png)
@@ -74,20 +86,6 @@
 <!-- TODO: Replace with actual screenshot -->
 ![Risk Center](docs/screenshots/risk-center.png)
 *Compliance Command Center with SOC 2, EU AI Act, and ISO 27001 readiness. One-click evidence package generation.*
-
-### Causal Investigation Graph
-<!-- TODO: Replace with actual screenshot -->
-![Causal Graph](docs/screenshots/causal-graph.png)
-*Visual reconstruction of agent → action → policy → outcome chains for forensic investigation.*
-
-### Control Center
-<!-- TODO: Replace with actual screenshot -->
-![Control Center](docs/screenshots/control-center.png)
-*Emergency kill switch with global agent pause/resume. Audit-logged executive controls for immediate threat response.*
-
-### Platform Landing Page
-![Platform Landing Page](docs/screenshots/home-page.png)
-*AgentWitness entry point: live policy violation feed, feature overview, and direct entry into the governance dashboard.*
 
 </details>
 
