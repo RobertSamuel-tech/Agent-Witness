@@ -19,15 +19,7 @@
 
 <br/>
 
-> **"The missing observability layer between your AI agents and your enterprise."**
-
-<br/>
-
-[![Schedule a Demo](https://img.shields.io/badge/Schedule%20a%20Demo-→-06b6d4?style=for-the-badge)](mailto:contact@agentwitness.io)
-[![Read the Docs](https://img.shields.io/badge/Read%20the%20Docs-→-a855f7?style=for-the-badge)](https://docs.agentwitness.io)
-[![View Pricing](https://img.shields.io/badge/View%20Pricing-→-f59e0b?style=for-the-badge)](https://agentwitness.io/pricing)
-
-</div>
+ **"The missing observability layer between your AI agents and your enterprise."**
 
 ---
 
