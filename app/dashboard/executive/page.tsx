@@ -386,16 +386,6 @@ export default function ExecutiveDashboardPage() {
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <Link href="/dashboard/compliance">
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-2 border-border text-muted-foreground hover:text-foreground"
-            >
-              <FileText className="h-3.5 w-3.5" />
-              Download Evidence Package
-            </Button>
-          </Link>
           <Link href="/dashboard/risk-center">
             <Button
               size="sm"

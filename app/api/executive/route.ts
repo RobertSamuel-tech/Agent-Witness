@@ -88,22 +88,26 @@ export interface ExecutiveDashboard {
 
 function computeRegulatoryExposure(
   governanceScore: number,
-  blockedCount: number
+  blockedCount: number,
+  totalActions: number
 ): RegulatoryExposureLevel {
-  if (governanceScore < 40 || blockedCount >= 20) return "CRITICAL";
-  if (governanceScore < 60 || blockedCount >= 10) return "HIGH";
-  if (governanceScore < 80 || blockedCount >= 3) return "MODERATE";
+  const blockedPct = totalActions > 0 ? blockedCount / totalActions : 0;
+  if (governanceScore < 40 || blockedPct > 0.30) return "CRITICAL";
+  if (governanceScore < 60 || blockedPct > 0.18) return "HIGH";
+  if (governanceScore < 80 || blockedPct > 0.05) return "MODERATE";
   return "LOW";
 }
 
-function computeComplianceReadiness(governanceScore: number, blockedCount: number): number {
+function computeComplianceReadiness(governanceScore: number, blockedCount: number, totalActions: number): number {
+  const blockedPct = totalActions > 0 ? blockedCount / totalActions : 0;
   const base = Math.round(governanceScore * 0.82 + 8);
-  const penalty = Math.min(blockedCount * 2, 20);
+  const penalty = Math.min(Math.round(blockedPct * 80), 20);
   return Math.max(20, Math.min(98, base - penalty));
 }
 
-function computeFrameworks(governanceScore: number, blockedCount: number): FrameworkReadiness {
-  const penalty = Math.min(blockedCount * 1.2, 18);
+function computeFrameworks(governanceScore: number, blockedCount: number, totalActions: number): FrameworkReadiness {
+  const blockedPct = totalActions > 0 ? blockedCount / totalActions : 0;
+  const penalty = Math.min(blockedPct * 80, 18);
   return {
     soc2:      Math.max(30, Math.min(98, Math.round(governanceScore * 0.89 + 7  - penalty * 0.5))),
     euAiAct:   Math.max(30, Math.min(98, Math.round(governanceScore * 0.84 + 4  - penalty * 0.7))),
@@ -113,11 +117,10 @@ function computeFrameworks(governanceScore: number, blockedCount: number): Frame
 }
 
 function computeTrend(
-  governanceScore: number,
-  blockedCount: number
+  governanceScore: number
 ): { trend: TrustTrendDirection; delta: number } {
-  if (governanceScore >= 80 && blockedCount < 5) return { trend: "improving", delta: 4 };
-  if (governanceScore >= 65 && blockedCount < 12) return { trend: "stable", delta: 1 };
+  if (governanceScore >= 80) return { trend: "improving", delta: 4 };
+  if (governanceScore >= 65) return { trend: "stable", delta: 1 };
   if (governanceScore >= 50) return { trend: "stable", delta: -1 };
   return { trend: "declining", delta: -6 };
 }
@@ -279,10 +282,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       governance.blockedCount,
       governance.flaggedCount
     );
-    const regulatoryExposure = computeRegulatoryExposure(governance.score, governance.blockedCount);
-    const complianceReadiness = computeComplianceReadiness(governance.score, governance.blockedCount);
-    const frameworks = computeFrameworks(governance.score, governance.blockedCount);
-    const { trend, delta } = computeTrend(governance.score, governance.blockedCount);
+    const regulatoryExposure = computeRegulatoryExposure(governance.score, governance.blockedCount, metrics.totalActions);
+    const complianceReadiness = computeComplianceReadiness(governance.score, governance.blockedCount, metrics.totalActions);
+    const frameworks = computeFrameworks(governance.score, governance.blockedCount, metrics.totalActions);
+    const { trend, delta } = computeTrend(governance.score);
     const agentsAtRisk = topAgents.filter((a) => a.blockedCount > 0).length;
 
     const executiveBrief = buildExecutiveBrief({

@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:seed": "node scripts/seed-demo.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.1069.0",

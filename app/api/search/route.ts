@@ -76,6 +76,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const results = matches.map((match) => ({
       id: match.id,
       agent_id: match.agent_id,
+      agentName: match.agentName,
       action_type: match.action_type,
       input_summary: match.input_summary,
       output_summary: match.output_summary,

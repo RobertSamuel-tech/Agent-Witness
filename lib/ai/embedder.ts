@@ -142,6 +142,15 @@ export async function embedText(text: string): Promise<number[]> {
 }
 
 /**
+ * Instant local embedding for bulk/seed workloads where OpenRouter latency is
+ * unacceptable. Same SHA-256 → mulberry32 PRNG algorithm as the fallback path
+ * in embedText(), guaranteed to be exactly EMBEDDING_DIMENSIONS-dimensional.
+ */
+export function embedTextLocal(text: string): number[] {
+  return localEmbedding(text.slice(0, MAX_INPUT_LENGTH));
+}
+
+/**
  * Deterministic, dependency-free embedding used when OpenAI is unavailable.
  * The same input text always produces the same 1536-dimension unit vector
  * (seeded from a SHA-256 digest of the text, expanded via a mulberry32 PRNG).

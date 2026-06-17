@@ -40,3 +40,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# internal — not for public repo
+CLAUDE.md
+AGENTS.md
+PHASE_10_MIGRATION_REPORT.md
+sales-ops-dashboard/

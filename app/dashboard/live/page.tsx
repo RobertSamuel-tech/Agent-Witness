@@ -1,8 +1,18 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Activity, Bot, DollarSign, Play, ShieldAlert, ShieldCheck, TrendingDown, Zap } from "lucide-react";
+import {
+  Activity,
+  Bot,
+  DollarSign,
+  Pause,
+  Play,
+  ShieldAlert,
+  ShieldCheck,
+  TrendingDown,
+  Zap,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -10,33 +20,19 @@ import { cn, formatRelativeTime, policyResultBadgeClass } from "@/lib/utils";
 import { useTenants } from "@/lib/tenant";
 import type { LiveEvent, LiveKpis } from "@/lib/db/live-stream";
 
-// ── DynamoDB live-stream response shape ─────────────────────────────────────
+// ── Types ──────────────────────────────────────────────────────────────────────
 
-interface DynamoEvent {
-  agentId: string;
-  timestamp: string;
-  eventType: string;
-  tenantId: string;
-  payload: Record<string, unknown>;
-}
-
-interface DynamoStreamResponse {
-  events: DynamoEvent[];
-  agentsOnline: number;
-  actionsPerMin: number;
-  blockedToday: number;
-  governanceScore: number;
+interface LiveEventsResponse {
+  events: LiveEvent[];
+  kpis: LiveKpis;
   updatedAt: string;
 }
 
 const MAX_EVENTS = 150;
 
-interface AnimatedCountProps {
-  value: number;
-  className?: string;
-}
+// ── AnimatedCount ─────────────────────────────────────────────────────────────
 
-function AnimatedCount({ value, className }: AnimatedCountProps) {
+function AnimatedCount({ value, className }: { value: number; className?: string }) {
   const [displayed, setDisplayed] = useState(value);
   const [animating, setAnimating] = useState(false);
   const prev = useRef(value);
@@ -44,62 +40,35 @@ function AnimatedCount({ value, className }: AnimatedCountProps) {
   useEffect(() => {
     if (value !== prev.current) {
       setAnimating(true);
-      const timeout = setTimeout(() => {
+      const t = setTimeout(() => {
         setDisplayed(value);
         setAnimating(false);
         prev.current = value;
       }, 100);
-      return () => clearTimeout(timeout);
+      return () => clearTimeout(t);
     }
   }, [value]);
 
   return (
-    <span
-      className={cn(
-        "transition-all duration-300",
-        animating && "opacity-60 scale-95",
-        className
-      )}
-    >
+    <span className={cn("transition-all duration-300", animating && "scale-95 opacity-60", className)}>
       {displayed.toLocaleString("en-US")}
     </span>
   );
 }
 
+// ── KPI strip ─────────────────────────────────────────────────────────────────
+
 function KpiStrip({ kpis, loading }: { kpis: LiveKpis | null; loading: boolean }) {
+  const govScore = kpis?.governanceScore ?? 0;
   const items = [
-    {
-      label: "Agents Online",
-      value: kpis?.agentsOnline ?? 0,
-      icon: Bot,
-      color: "text-accent",
-      bg: "bg-accent/10",
-    },
-    {
-      label: "Actions / min",
-      value: kpis?.actionsLastMinute ?? 0,
-      icon: Zap,
-      color: "text-chart-1",
-      bg: "bg-chart-1/10",
-    },
-    {
-      label: "Blocked Today",
-      value: kpis?.blockedToday ?? 0,
-      icon: ShieldAlert,
-      color: "text-destructive",
-      bg: "bg-destructive/10",
-    },
+    { label: "Agents Online",   value: kpis?.agentsOnline ?? 0,       icon: Bot,       color: "text-accent",      bg: "bg-accent/10" },
+    { label: "Actions / min",   value: kpis?.actionsLastMinute ?? 0,   icon: Zap,       color: "text-chart-1",     bg: "bg-chart-1/10" },
+    { label: "Blocked Today",   value: kpis?.blockedToday ?? 0,        icon: ShieldAlert, color: "text-destructive", bg: "bg-destructive/10" },
     {
       label: "Governance Score",
-      value: kpis?.governanceScore ?? 0,
+      value: govScore,
       icon: ShieldCheck,
-      color: kpis
-        ? kpis.governanceScore >= 80
-          ? "text-success"
-          : kpis.governanceScore >= 50
-            ? "text-warning"
-            : "text-destructive"
-        : "text-muted-foreground",
+      color: govScore >= 80 ? "text-success" : govScore >= 50 ? "text-warning" : "text-destructive",
       bg: "bg-secondary",
     },
   ];
@@ -136,22 +105,30 @@ function KpiStrip({ kpis, loading }: { kpis: LiveKpis | null; loading: boolean }
   );
 }
 
-function actionTypeLabel(actionType: string): string {
-  return actionType.replace(/_/g, " ");
+// ── Event row ─────────────────────────────────────────────────────────────────
+
+function actionTypeLabel(t: string) { return t.replace(/_/g, " "); }
+
+function policyLabel(r: string | null) {
+  if (!r) return null;
+  return r.replace(/_/g, " ");
 }
 
-function policyLabel(policyRuleType: string | null): string | null {
-  if (!policyRuleType) return null;
-  return policyRuleType.replace(/_/g, " ");
-}
-
-function EventRow({ event, isNew, onInvestigate }: { event: LiveEvent; isNew: boolean; onInvestigate: () => void }) {
+function EventRow({
+  event,
+  isNew,
+  onInvestigate,
+}: {
+  event: LiveEvent;
+  isNew: boolean;
+  onInvestigate: () => void;
+}) {
   const [highlight, setHighlight] = useState(isNew);
 
   useEffect(() => {
     if (isNew) {
-      const timer = setTimeout(() => setHighlight(false), 2000);
-      return () => clearTimeout(timer);
+      const t = setTimeout(() => setHighlight(false), 2000);
+      return () => clearTimeout(t);
     }
   }, [isNew]);
 
@@ -171,39 +148,27 @@ function EventRow({ event, isNew, onInvestigate }: { event: LiveEvent; isNew: bo
               : "border-border bg-background hover:border-border/80 hover:bg-secondary/30"
       )}
     >
-      {/* Status dot */}
-      <div className="mt-1 flex-shrink-0">
+      <div className="mt-1 shrink-0">
         <span
           className={cn(
             "flex h-2.5 w-2.5 rounded-full",
-            isBlocked
-              ? "bg-destructive"
-              : isFlagged
-                ? "bg-warning"
-                : "bg-success"
+            isBlocked ? "bg-destructive" : isFlagged ? "bg-warning" : "bg-success"
           )}
         />
       </div>
 
-      {/* Main content */}
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-mono text-xs font-semibold text-foreground">[{event.agentName}]</span>
           <span className="text-sm text-muted-foreground">{actionTypeLabel(event.actionType)}</span>
         </div>
         <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{event.inputSummary}</p>
-
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          <Badge
-            variant="outline"
-            className={cn("text-xs", policyResultBadgeClass(event.policyResult))}
-          >
+          <Badge variant="outline" className={cn("text-xs", policyResultBadgeClass(event.policyResult))}>
             {event.policyResult.toUpperCase()}
           </Badge>
           {policyLabel(event.policyRuleType) && (
-            <span className="text-xs text-muted-foreground">
-              Policy: {policyLabel(event.policyRuleType)}
-            </span>
+            <span className="text-xs text-muted-foreground">Policy: {policyLabel(event.policyRuleType)}</span>
           )}
           {event.costUsd !== null && (
             <span className="flex items-center gap-0.5 text-xs text-muted-foreground">
@@ -214,7 +179,6 @@ function EventRow({ event, isNew, onInvestigate }: { event: LiveEvent; isNew: bo
         </div>
       </div>
 
-      {/* Timestamp + replay link */}
       <div className="flex shrink-0 flex-col items-end gap-1">
         <span className="text-xs text-muted-foreground">{formatRelativeTime(event.createdAt)}</span>
         <button
@@ -229,6 +193,8 @@ function EventRow({ event, isNew, onInvestigate }: { event: LiveEvent; isNew: bo
   );
 }
 
+// ── Page ──────────────────────────────────────────────────────────────────────
+
 export default function LiveStreamPage() {
   const { selectedTenantId, loading: tenantsLoading } = useTenants();
   const router = useRouter();
@@ -241,14 +207,22 @@ export default function LiveStreamPage() {
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
 
-  // Tracks DynamoDB composite keys (agentId#timestamp) seen so far
-  const seenKeysRef = useRef(new Set<string>());
+  // Simulation: ON by default so the demo is alive on first open
+  const [autoSimulate, setAutoSimulate] = useState(true);
+  const [simulateError, setSimulateError] = useState<string | null>(null);
+
+  // Track the ISO timestamp of the most recent event we've seen
+  const lastTimestampRef = useRef<string | null>(null);
   const isFirstPollRef = useRef(true);
+  const seenIdsRef = useRef(new Set<string>());
+
+  // ── Aurora polling ──────────────────────────────────────────────────────────
 
   useEffect(() => {
     // Reset on tenant change
-    seenKeysRef.current = new Set();
+    lastTimestampRef.current = null;
     isFirstPollRef.current = true;
+    seenIdsRef.current = new Set();
     setEvents([]);
     setKpis(null);
     setKpisLoading(true);
@@ -257,85 +231,53 @@ export default function LiveStreamPage() {
 
     if (!selectedTenantId) return;
 
-    const headers: Record<string, string> = { "x-tenant-id": selectedTenantId };
+    const headers = { "x-tenant-id": selectedTenantId };
     let cancelled = false;
-
-    function mapEvent(e: DynamoEvent): { key: string; display: LiveEvent } {
-      const key = `${e.agentId}#${e.timestamp}`;
-      const actionId =
-        typeof e.payload["actionId"] === "string" ? e.payload["actionId"] : key;
-      return {
-        key,
-        display: {
-          id: actionId,
-          agentName: (typeof e.payload["inputSummary"] === "string"
-            ? e.agentId
-            : e.agentId
-          ).slice(0, 12),
-          actionType: e.eventType,
-          policyResult: (typeof e.payload["policyResult"] === "string"
-            ? e.payload["policyResult"]
-            : "allowed") as LiveEvent["policyResult"],
-          policyRuleType: null,
-          costUsd:
-            typeof e.payload["costUsd"] === "number" ? e.payload["costUsd"] : null,
-          inputSummary:
-            typeof e.payload["inputSummary"] === "string"
-              ? e.payload["inputSummary"]
-              : `${e.eventType} event from agent ${e.agentId.slice(0, 8)}`,
-          createdAt: e.timestamp,
-        },
-      };
-    }
 
     async function poll() {
       if (cancelled) return;
       try {
-        const res = await fetch("/api/live-stream?limit=100", { headers });
+        const since = lastTimestampRef.current;
+        const url = since
+          ? `/api/live-events?since=${encodeURIComponent(since)}`
+          : "/api/live-events";
+
+        const res = await fetch(url, { headers });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = (await res.json()) as DynamoStreamResponse;
+        const data = (await res.json()) as LiveEventsResponse;
         if (cancelled) return;
 
-        const mapped = data.events.map(mapEvent);
-
         if (isFirstPollRef.current) {
-          // Initial load — show all without new-highlight
-          setEvents(mapped.map((m) => m.display));
-          mapped.forEach((m) => seenKeysRef.current.add(m.key));
+          // Initial load — show existing events without highlighting them
+          setEvents(data.events);
+          data.events.forEach((e) => seenIdsRef.current.add(e.id));
+          if (data.events.length > 0) {
+            lastTimestampRef.current = data.events[0].createdAt;
+          }
           isFirstPollRef.current = false;
           setKpisLoading(false);
-        } else {
-          // Subsequent poll — highlight only genuinely new events
-          const fresh = mapped.filter((m) => !seenKeysRef.current.has(m.key));
+        } else if (data.events.length > 0) {
+          // Incremental poll — only truly new events arrive here
+          const fresh = data.events.filter((e) => !seenIdsRef.current.has(e.id));
           if (fresh.length > 0) {
-            const freshIds = new Set(fresh.map((m) => m.display.id));
+            const freshIds = new Set(fresh.map((e) => e.id));
             setNewIds(freshIds);
-            setEvents((prev) => {
-              const existing = new Set(prev.map((e) => e.id));
-              const toAdd = fresh
-                .map((m) => m.display)
-                .filter((e) => !existing.has(e.id));
-              return [...toAdd, ...prev].slice(0, MAX_EVENTS);
-            });
-            fresh.forEach((m) => seenKeysRef.current.add(m.key));
+            setEvents((prev) => [...fresh, ...prev].slice(0, MAX_EVENTS));
+            fresh.forEach((e) => seenIdsRef.current.add(e.id));
+            // Update since to the newest event we received
+            lastTimestampRef.current = fresh[0].createdAt;
             setTimeout(() => { if (!cancelled) setNewIds(new Set()); }, 2500);
           }
         }
 
-        // Map DynamoDB KPI fields to LiveKpis shape (actionsPerMin → actionsLastMinute)
-        setKpis({
-          agentsOnline: data.agentsOnline,
-          actionsLastMinute: data.actionsPerMin,
-          blockedToday: data.blockedToday,
-          governanceScore: data.governanceScore,
-        });
+        setKpis(data.kpis);
         setLastUpdated(data.updatedAt);
         setConnected(true);
         setError(null);
       } catch {
         if (!cancelled) {
           setConnected(false);
-          setError("Polling disconnected. Retrying...");
+          setError("Polling paused. Retrying...");
         }
       }
     }
@@ -347,6 +289,53 @@ export default function LiveStreamPage() {
       clearInterval(interval);
     };
   }, [selectedTenantId]);
+
+  // ── Simulate one event ──────────────────────────────────────────────────────
+
+  const runSimulate = useCallback(async () => {
+    if (!selectedTenantId) return;
+    try {
+      const res = await fetch("/api/simulate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-tenant-id": selectedTenantId },
+        body: JSON.stringify({ count: 1 }),
+      });
+      if (res.status === 423) {
+        setSimulateError("Agents paused via Control Center");
+        setAutoSimulate(false);
+      } else if (!res.ok) {
+        setSimulateError(`Simulate error (${res.status})`);
+      } else {
+        setSimulateError(null);
+      }
+    } catch {
+      setSimulateError("Simulate unreachable");
+    }
+  }, [selectedTenantId]);
+
+  // ── Auto-simulation loop (random 5-8 s interval for natural feel) ───────────
+
+  useEffect(() => {
+    if (!autoSimulate || !selectedTenantId) return;
+
+    let handle: ReturnType<typeof setTimeout>;
+
+    function scheduleNext() {
+      const delay = 5_000 + Math.random() * 3_000; // 5-8 s
+      handle = setTimeout(async () => {
+        await runSimulate();
+        scheduleNext();
+      }, delay);
+    }
+
+    // Fire once immediately then recurse
+    runSimulate();
+    scheduleNext();
+
+    return () => clearTimeout(handle);
+  }, [autoSimulate, selectedTenantId, runSimulate]);
+
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   if (tenantsLoading) {
     return (
@@ -376,31 +365,60 @@ export default function LiveStreamPage() {
               )}
             />
             <span className={cn("text-xs font-medium", connected ? "text-success" : "text-muted-foreground")}>
-              {connected ? "Connected to DynamoDB Hot Path" : "Connecting..."}
+              {connected ? "Connected · Aurora PostgreSQL" : "Connecting..."}
             </span>
           </div>
           <Badge variant="outline" className="border-chart-1/30 bg-chart-1/10 text-chart-1">
             Real-time
           </Badge>
         </div>
+
         <div className="mt-1 flex flex-wrap items-center gap-4">
           <p className="text-sm text-muted-foreground">
-            Live AI operations feed — DynamoDB hot path, polled every 3 seconds.
+            Live AI operations feed — Aurora PostgreSQL, polled every 3 seconds.
           </p>
           {lastUpdated && (
             <span className="font-mono text-xs text-muted-foreground/50">
-              Last Updated: {new Date(lastUpdated).toLocaleTimeString("en-US", {
-                hour: "2-digit", minute: "2-digit", second: "2-digit",
+              Last updated:{" "}
+              {new Date(lastUpdated).toLocaleTimeString("en-US", {
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
               })}
             </span>
           )}
+
+          {/* Simulation toggle */}
+          <button
+            onClick={() => setAutoSimulate((v) => !v)}
+            className={cn(
+              "flex items-center gap-1.5 rounded-md border px-3 py-1 text-xs font-medium transition-colors",
+              autoSimulate
+                ? "border-success/40 bg-success/10 text-success hover:bg-success/20"
+                : "border-border text-muted-foreground hover:bg-secondary hover:text-foreground"
+            )}
+          >
+            {autoSimulate ? (
+              <>
+                <Pause className="h-3 w-3" />
+                Stop Simulation
+              </>
+            ) : (
+              <>
+                <Zap className="h-3 w-3" />
+                Start Live Demo
+              </>
+            )}
+          </button>
+
+          {simulateError && <span className="text-xs text-destructive">{simulateError}</span>}
         </div>
       </div>
 
-      {/* KPI Strip */}
+      {/* KPI strip */}
       <KpiStrip kpis={kpis} loading={kpisLoading} />
 
-      {/* Event Feed */}
+      {/* Event feed */}
       <Card className="border-border bg-card">
         <CardHeader className="flex flex-row items-center justify-between border-b border-border pb-4">
           <div className="flex items-center gap-3">
@@ -412,15 +430,14 @@ export default function LiveStreamPage() {
               </Badge>
             )}
           </div>
-          {error && (
-            <p className="text-xs text-destructive">{error}</p>
-          )}
+          {error && <p className="text-xs text-destructive">{error}</p>}
         </CardHeader>
+
         <CardContent className="p-0">
           {events.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
               {kpisLoading ? (
-                <div className="space-y-3 w-full px-6">
+                <div className="w-full space-y-3 px-6">
                   {Array.from({ length: 5 }).map((_, i) => (
                     <Skeleton key={i} className="h-16 w-full rounded-lg bg-muted" />
                   ))}
@@ -428,7 +445,9 @@ export default function LiveStreamPage() {
               ) : (
                 <>
                   <TrendingDown className="h-10 w-10 text-muted-foreground/50" />
-                  <p className="text-sm text-muted-foreground">No agent activity yet. Events appear here in real-time.</p>
+                  <p className="text-sm text-muted-foreground">
+                    No events yet. The simulator is starting…
+                  </p>
                 </>
               )}
             </div>

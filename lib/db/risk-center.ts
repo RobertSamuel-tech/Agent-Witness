@@ -65,8 +65,9 @@ export async function getGovernanceMetrics(tenantId: string): Promise<Governance
 
   const rows = await executeSql(
     `SELECT
-       COUNT(*) FILTER (WHERE aa.policy_result = 'blocked') AS blocked_count,
-       COUNT(*) FILTER (WHERE aa.policy_result = 'flagged') AS flagged_count,
+       COUNT(*)                                                                              AS total_count,
+       COUNT(*) FILTER (WHERE aa.policy_result = 'blocked')                                 AS blocked_count,
+       COUNT(*) FILTER (WHERE aa.policy_result = 'flagged')                                 AS flagged_count,
        COUNT(*) FILTER (WHERE p.rule_type = 'cost_limit' AND aa.policy_result <> 'allowed') AS high_cost_count
      FROM agent_actions aa
      LEFT JOIN policies p ON p.id = aa.policy_id
@@ -75,12 +76,15 @@ export async function getGovernanceMetrics(tenantId: string): Promise<Governance
   );
 
   const row = rows[0] ?? {};
+  const totalCount = getNumber(row, "total_count");
   const blockedCount = getNumber(row, "blocked_count");
   const flaggedCount = getNumber(row, "flagged_count");
   const highCostCount = getNumber(row, "high_cost_count");
 
-  const rawScore = 100 - blockedCount * 5 - flaggedCount * 2 - highCostCount * 1;
-  const score = Math.max(0, Math.min(100, rawScore));
+  const blockedPct = totalCount > 0 ? blockedCount / totalCount : 0;
+  const flaggedPct = totalCount > 0 ? flaggedCount / totalCount : 0;
+  const rawScore = 100 - blockedPct * 100 - flaggedPct * 40 - (totalCount > 0 ? highCostCount / totalCount * 20 : 0);
+  const score = Math.max(0, Math.min(100, Math.round(rawScore)));
 
   let level: GovernanceLevel;
   if (score >= 80) {

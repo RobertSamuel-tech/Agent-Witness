@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, AlertTriangle, BarChart3, Bot, Brain, CreditCard, Menu, Power, Radar, ScrollText, Share2, Shield, ShieldAlert } from "lucide-react";
+import { Activity, AlertTriangle, BarChart3, Bot, Brain, CreditCard, GitBranch, Menu, Power, Radar, ScrollText, Share2, Shield, ShieldAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTenants } from "@/lib/tenant";
 import { Badge } from "@/components/ui/badge";
@@ -41,6 +41,7 @@ const NAV_ITEMS = [
   { href: "/dashboard/graph", label: "Causal Graph", icon: Share2 },
   { href: "/dashboard/control-center", label: "Control Center", icon: Power },
   { href: "/dashboard/billing", label: "Plans & Billing", icon: CreditCard },
+  { href: "/dashboard/architecture", label: "Architecture", icon: GitBranch },
 ] as const;
 
 function getCurrentRouteLabel(pathname: string): string {
@@ -197,7 +198,7 @@ function SidebarContent({
   return (
     <div className="flex h-full flex-col">
       <div className="flex h-16 items-center border-b border-sidebar-border px-6">
-        <Link href="/dashboard/risk-center" className="text-xl font-bold tracking-tight text-sidebar-foreground hover:text-accent transition-colors duration-200">
+        <Link href="/home" className="text-xl font-bold tracking-tight text-sidebar-foreground hover:text-accent transition-colors duration-200">
           AgentWitness
         </Link>
       </div>

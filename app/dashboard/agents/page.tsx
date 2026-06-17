@@ -86,8 +86,8 @@ function AgentCard({ agent, idx }: { agent: AgentTrustSummary; idx: number }) {
   return (
     <Link href={`/dashboard/agents/${agent.agentId}`} className="group block">
       <div
-        className="relative overflow-hidden rounded-xl border p-5 transition-all duration-200 hover:border-white/10 hover:shadow-lg"
-        style={{ background: "#0f172a", borderColor: levelCfg.border }}
+        className="relative overflow-hidden rounded-xl border bg-background p-5 transition-all duration-200 hover:border-white/10 hover:shadow-lg"
+        style={{ borderColor: levelCfg.border }}
       >
         {/* Left accent stripe */}
         <div
@@ -143,7 +143,7 @@ function AgentCard({ agent, idx }: { agent: AgentTrustSummary; idx: number }) {
             <div className="flex items-center gap-3 text-[11px]">
               <span className="text-muted-foreground">
                 Compliance{" "}
-                <span className="font-bold text-[#06b6d4]">{agent.complianceScore}%</span>
+                <span className="font-bold text-foreground/80">{agent.complianceScore}%</span>
               </span>
               <span className="text-muted-foreground">
                 Violations{" "}

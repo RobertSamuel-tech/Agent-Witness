@@ -124,8 +124,10 @@ export function computeTrustScore(
   totalActions: number
 ): number {
   if (totalActions === 0) return 100;
-  const raw = 100 - blockedCount * 10 - flaggedCount * 4;
-  return Math.max(0, Math.min(100, raw));
+  const blockedPct = blockedCount / totalActions;
+  const flaggedPct = flaggedCount / totalActions;
+  const raw = 100 - blockedPct * 120 - flaggedPct * 40;
+  return Math.max(0, Math.min(100, Math.round(raw)));
 }
 
 export function computeComplianceScore(
@@ -167,7 +169,7 @@ export async function getAgentTrustScores(
   await setTenantContext(tenantId);
 
   const [allTimeRows, trendRows, sparkRows] = await Promise.all([
-    // All-time violation counts per agent
+    // All-time violation counts per agent (exclude test/verification agents)
     executeSql(
       `SELECT
          ag.id                                                   AS agent_id,
@@ -181,6 +183,7 @@ export async function getAgentTrustScores(
        LEFT JOIN agent_actions aa
          ON aa.agent_id = ag.id AND aa.tenant_id = ag.tenant_id
        WHERE ag.tenant_id = :tenantId
+         AND ag.framework NOT IN ('verification-script')
        GROUP BY ag.id, ag.name, ag.framework
        ORDER BY blocked_ct DESC, flagged_ct DESC, ag.name ASC`,
       [uuidParam("tenantId", tenantId)]
@@ -210,6 +213,7 @@ export async function getAgentTrustScores(
        LEFT JOIN agent_actions aa
          ON aa.agent_id = ag.id AND aa.tenant_id = ag.tenant_id
        WHERE ag.tenant_id = :tenantId
+         AND ag.framework NOT IN ('verification-script')
        GROUP BY ag.id`,
       [uuidParam("tenantId", tenantId)]
     ),

@@ -279,7 +279,7 @@ function RadarChart({ fp }: { fp: BehaviorFingerprint }) {
     }).join(" ") + " Z";
 
   return (
-    <svg viewBox="0 0 320 296" className="w-full max-w-xs" aria-hidden="true">
+    <svg viewBox="0 0 320 296" className="w-full" aria-hidden="true">
       <defs>
         <radialGradient id="rfill" cx="50%" cy="50%" r="50%">
           <stop offset="0%"   stopColor="#06b6d4" stopOpacity="0.25" />
@@ -648,16 +648,16 @@ function S3_Fingerprint({ fp }: { fp: BehaviorFingerprint }) {
   }
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-5">
+    <div className="flex flex-1 flex-col rounded-2xl border border-border bg-card p-5">
       <span className="text-[10px] font-bold uppercase tracking-widest text-[#06b6d4]">AI Behavior Fingerprint</span>
-      <p className="mb-5 mt-1 text-xs text-muted-foreground/50">Unique behavioral signature derived from action history</p>
+      <p className="mb-3 mt-1 text-xs text-muted-foreground/50">Unique behavioral signature derived from action history</p>
 
-      <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start">
-        <div className="flex w-full justify-center sm:w-auto">
+      <div className="flex min-h-0 flex-1 flex-col gap-4 sm:flex-row sm:items-stretch">
+        <div className="flex min-h-0 items-center justify-center sm:w-[48%] sm:shrink-0">
           <RadarChart fp={fp} />
         </div>
 
-        <div className="w-full space-y-3 sm:flex-1">
+        <div className="flex flex-1 flex-col justify-between sm:min-w-0">
           {dims.map(({ key, label }) => {
             const v = fp[key];
             const color = dimColor(v);
@@ -693,15 +693,25 @@ function S4_TrustPrediction({ prediction, currentScore, trendData }: {
   const projColor = prediction.projected >= 80 ? "#22c55e" : prediction.projected >= 60 ? "#f59e0b" : "#ef4444";
 
   const recentScores = trendData.slice(-7).map((d) => d.trustScore);
-  const W = 240, H = 60;
-  const halfW = W * 0.5;
+
+  // Larger viewBox so strokeWidth stays thin when SVG scales to full width
+  const W = 480, H = 120;
+  const splitX = W * 0.5;
+
+  const minScore = Math.min(...recentScores, prediction.projected) - 8;
+  const maxScore = Math.max(...recentScores, prediction.projected) + 8;
+  const range = Math.max(maxScore - minScore, 1);
+  const toY = (s: number) => H - ((s - minScore) / range) * (H - 12) - 6;
+
   const pts = recentScores.map((s, i) => ({
-    x: (i / Math.max(recentScores.length - 1, 1)) * halfW,
-    y: H - (s / 100) * H,
+    x: (i / Math.max(recentScores.length - 1, 1)) * splitX,
+    y: toY(s),
   }));
-  const lastPt = pts[pts.length - 1] ?? { x: halfW, y: H * 0.5 };
-  const projPt = { x: W, y: H - (prediction.projected / 100) * H };
-  const pathD = pts.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
+  const lastPt = pts[pts.length - 1] ?? { x: splitX, y: H / 2 };
+  const projPt = { x: W, y: toY(prediction.projected) };
+
+  const solidPath = pts.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
+  const areaPath = `${solidPath} L ${lastPt.x.toFixed(1)} ${H} L 0 ${H} Z`;
 
   const basis = prediction.trendSlope < -0.5
     ? `Violation frequency is increasing. If current pattern continues, trust score will fall below ${Math.min(prediction.projected + 10, currentScore)} within 5 days.`
@@ -710,64 +720,117 @@ function S4_TrustPrediction({ prediction, currentScore, trendData }: {
     : "Violation frequency is holding steady. Score trajectory depends on upcoming agent behavior.";
 
   return (
-    <div
-      className="relative overflow-hidden rounded-2xl border p-5"
-      style={{ background: "linear-gradient(135deg, #0f0a1e 0%, #0a0e1a 100%)", borderColor: "#a855f720" }}
-    >
-      <div className="pointer-events-none absolute right-0 top-0 h-40 w-40 rounded-full bg-[#a855f7] opacity-5 blur-3xl" />
+    <div className="relative flex flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-card p-5">
+      <div className="pointer-events-none absolute right-0 top-0 h-32 w-32 rounded-full bg-[#a855f7] opacity-[0.04] blur-3xl" />
 
+      {/* Header */}
       <div className="mb-1 flex items-center justify-between">
         <span className="text-[10px] font-bold uppercase tracking-widest text-[#a855f7]">AI Trust Forecast</span>
-        <span className="rounded-full border border-[#a855f7]/20 bg-[#a855f7]/10 px-2 py-0.5 text-[9px] font-bold text-[#a855f7]">ML POWERED</span>
+        <span className="rounded-full border border-[#a855f7]/20 bg-[#a855f7]/10 px-2 py-0.5 text-[9px] font-semibold text-[#a855f7]">ML POWERED</span>
       </div>
-      <p className="mb-4 text-xs text-muted-foreground/50">Projected Trust Score (7 days)</p>
+      <p className="text-xs text-muted-foreground/50">Projected Trust Score (7 days)</p>
 
-      <div className="flex items-end gap-6">
+      {/* Score row */}
+      <div className="mt-4 flex items-center gap-5">
         <div>
           <p className="text-[10px] uppercase tracking-widest text-muted-foreground/40">Current</p>
-          <p className="mt-0.5 font-mono text-4xl font-black text-foreground">{currentScore}</p>
+          <p className="mt-0.5 font-mono text-2xl font-bold text-foreground">{currentScore}</p>
         </div>
-        <div className="mb-2 text-muted-foreground/30">→</div>
+        <span className="text-muted-foreground/25 text-sm">→</span>
         <div>
           <p className="text-[10px] uppercase tracking-widest text-muted-foreground/40">Likely Outcome</p>
-          <p className="mt-0.5 font-mono text-4xl font-black" style={{ color: projColor }}>{prediction.projected}</p>
-          <p className="text-[11px] font-bold" style={{ color: delta < 0 ? "#ef4444" : "#22c55e" }}>
-            {delta > 0 ? "+" : ""}{delta} pts
-          </p>
+          <div className="mt-0.5 flex items-baseline gap-1.5">
+            <p className="font-mono text-2xl font-bold" style={{ color: projColor }}>{prediction.projected}</p>
+            <span
+              className="font-mono text-xs font-semibold"
+              style={{ color: delta < 0 ? "#ef4444" : "#22c55e" }}
+            >
+              {delta > 0 ? "+" : ""}{delta} pts
+            </span>
+          </div>
         </div>
       </div>
 
-      <div className="my-4 overflow-hidden rounded-lg bg-white/[0.03] p-2">
+      {/* Chart */}
+      <div className="my-4 overflow-hidden rounded-lg bg-white/[0.025]">
         <svg width="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet">
-          <path d={pathD} stroke="#06b6d4" strokeWidth="1.5" fill="none" strokeLinecap="round" />
-          <line x1={lastPt.x.toFixed(1)} y1={lastPt.y.toFixed(1)} x2={projPt.x.toFixed(1)} y2={projPt.y.toFixed(1)} stroke={projColor} strokeWidth="1.5" strokeDasharray="4 3" />
-          <line x1={halfW.toFixed(1)} y1="0" x2={halfW.toFixed(1)} y2={H} stroke="rgba(255,255,255,0.08)" strokeWidth="1" strokeDasharray="2 2" />
-          <text x={(halfW + 4).toFixed(1)} y="10" fontSize="7" fill="rgba(148,163,184,0.4)" fontFamily="monospace">Today</text>
-          <circle cx={projPt.x} cy={projPt.y} r="4" fill={projColor} opacity="0.8" />
+          <defs>
+            <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%"   stopColor="#06b6d4" stopOpacity="0.12" />
+              <stop offset="100%" stopColor="#06b6d4" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+
+          {/* Subtle horizontal grid */}
+          {[0.25, 0.5, 0.75].map((f) => (
+            <line
+              key={f}
+              x1="0" y1={(H * f).toFixed(1)}
+              x2={W} y2={(H * f).toFixed(1)}
+              stroke="rgba(255,255,255,0.04)" strokeWidth="1"
+            />
+          ))}
+
+          {/* Area fill under historical line */}
+          <path d={areaPath} fill="url(#areaGrad)" />
+
+          {/* Historical line */}
+          <path d={solidPath} stroke="#06b6d4" strokeWidth="1" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+
+          {/* Today divider */}
+          <line
+            x1={splitX.toFixed(1)} y1="0"
+            x2={splitX.toFixed(1)} y2={H}
+            stroke="rgba(255,255,255,0.06)" strokeWidth="1" strokeDasharray="3 3"
+          />
+          <text
+            x={(splitX + 5).toFixed(1)} y="9"
+            fontSize="8" fill="rgba(148,163,184,0.35)"
+            fontFamily="system-ui, sans-serif"
+          >
+            Today
+          </text>
+
+          {/* Projection dashed line */}
+          <line
+            x1={lastPt.x.toFixed(1)} y1={lastPt.y.toFixed(1)}
+            x2={projPt.x.toFixed(1)} y2={projPt.y.toFixed(1)}
+            stroke={projColor} strokeWidth="1" strokeDasharray="5 4" strokeLinecap="round"
+            opacity="0.7"
+          />
+
+          {/* Endpoint dot */}
+          <circle cx={projPt.x} cy={projPt.y.toFixed(1)} r="2.5" fill={projColor} opacity="0.9" />
+
+          {/* Dots on historical line */}
+          {pts.map((p, i) => (
+            <circle key={i} cx={p.x.toFixed(1)} cy={p.y.toFixed(1)} r="1.5" fill="#06b6d4" opacity="0.6" />
+          ))}
         </svg>
       </div>
 
-      <div className="space-y-3">
+      {/* Metrics */}
+      <div className="space-y-2.5">
         <div>
           <div className="mb-1 flex justify-between text-[11px]">
             <span className="text-muted-foreground/60">Prediction Confidence</span>
-            <span className="font-mono font-bold text-[#a855f7]">{prediction.confidence}%</span>
+            <span className="font-mono font-semibold text-[#a855f7]">{prediction.confidence}%</span>
           </div>
-          <div className="h-1.5 overflow-hidden rounded-full bg-white/5">
-            <div className="h-full rounded-full bg-[#a855f7]" style={{ width: `${prediction.confidence}%`, boxShadow: "0 0 6px #a855f755" }} />
+          <div className="h-1 overflow-hidden rounded-full bg-white/5">
+            <div className="h-full rounded-full bg-[#a855f7]/70" style={{ width: `${prediction.confidence}%` }} />
           </div>
         </div>
 
         <div>
           <div className="mb-1 flex justify-between text-[11px]">
             <span className="text-muted-foreground/60">Probability of Critical Incident</span>
-            <span className="font-mono font-bold" style={{ color: prediction.criticalProbability > 30 ? "#ef4444" : "#f59e0b" }}>
+            <span className="font-mono font-semibold" style={{ color: prediction.criticalProbability > 30 ? "#ef4444" : "#f59e0b" }}>
               {prediction.criticalProbability}%
             </span>
           </div>
-          <div className="h-1.5 overflow-hidden rounded-full bg-white/5">
+          <div className="h-1 overflow-hidden rounded-full bg-white/5">
             <div
-              className="h-full rounded-full"
+              className="h-full rounded-full opacity-70"
               style={{
                 width: `${prediction.criticalProbability}%`,
                 background: prediction.criticalProbability > 30 ? "#ef4444" : "#f59e0b",
@@ -777,7 +840,7 @@ function S4_TrustPrediction({ prediction, currentScore, trendData }: {
         </div>
       </div>
 
-      <p className="mt-4 text-[11px] leading-relaxed text-muted-foreground/50">{basis}</p>
+      <p className="mt-4 text-[11px] leading-relaxed text-muted-foreground/45">{basis}</p>
     </div>
   );
 }
@@ -944,11 +1007,11 @@ export default function AgentTrustProfilePage() {
 
       {/* Section 3 + 4 — Fingerprint & Prediction */}
       <div className="grid gap-5 lg:grid-cols-2">
-        <div>
+        <div className="flex flex-col">
           <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">AI Behavior Fingerprint</p>
           <S3_Fingerprint fp={fingerprint} />
         </div>
-        <div>
+        <div className="flex flex-col">
           <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">Trust Prediction</p>
           <S4_TrustPrediction prediction={prediction} currentScore={profile.trustScore} trendData={profile.trendData} />
         </div>

@@ -12,9 +12,11 @@ import type { AgentTrustSummary } from "@/lib/db/trust-scores";
 
 const PW = 595.28;
 const PH = 841.89;
-const ML = 54; // left / right margin
-const MT = 54; // top / bottom margin
-const CW = PW - ML * 2; // content width ≈ 487
+const ML = 54;
+const MT = 54;
+const CW = PW - ML * 2;
+const FOOTER_H = 36;
+const CONTENT_BOTTOM = PH - MT - FOOTER_H;
 
 // ── Colour palette ────────────────────────────────────────────────────────────
 
@@ -54,11 +56,7 @@ export interface ReportData {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function fmtDate(d: Date): string {
-  return d.toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
+  return d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
 }
 
 function fmtShortDt(iso: string): string {
@@ -80,60 +78,52 @@ function govColor(score: number): string {
   return C.red;
 }
 
-function trustColor(score: number): string {
-  if (score >= 80) return C.green;
-  if (score >= 50) return C.amber;
-  return C.red;
-}
 
-// ── Renderer: thin wrapper that auto-paginates ─────────────────────────────────
+// ── Renderer ──────────────────────────────────────────────────────────────────
 
 class R {
   doc: PDFKit.PDFDocument;
-  y: number;
-  pageNum = 1;
-  totalPages = 0;
+  y = MT;
+  sectionColor = C.cyan;
+  sectionTitle = "";
 
   constructor(doc: PDFKit.PDFDocument) {
     this.doc = doc;
-    this.y = MT;
   }
 
-  needsPage(h: number): boolean {
-    return this.y + h > PH - MT - 30;
-  }
-
-  addPage(accentColor: string, sectionTitle: string) {
+  // Call at the start of every content section (adds a new page)
+  startSection(color: string, title: string) {
     this.doc.addPage();
-    this.pageNum++;
+    this.sectionColor = color;
+    this.sectionTitle = title;
     this.y = MT;
-    this.pageHeader(accentColor, sectionTitle);
+    this._drawPageHeader();
   }
 
-  ensureSpace(h: number, accentColor: string, sectionTitle: string) {
-    if (this.needsPage(h)) this.addPage(accentColor, sectionTitle);
+  ensureSpace(h: number) {
+    if (this.y + h > CONTENT_BOTTOM) {
+      this.doc.addPage();
+      this.y = MT;
+      this._drawPageHeader();
+    }
   }
 
-  pageHeader(accentColor: string, title: string) {
-    // thin accent bar at very top
-    this.doc.rect(0, 0, PW, 4).fill(accentColor);
-    // left accent + title
-    this.doc.rect(ML, MT, 3, 22).fill(accentColor);
+  _drawPageHeader() {
+    // Top accent bar
+    this.doc.rect(0, 0, PW, 4).fill(this.sectionColor);
+    // Left accent + title
+    this.doc.rect(ML, MT, 3, 22).fill(this.sectionColor);
     this.doc
       .font("Helvetica-Bold")
-      .fontSize(15)
+      .fontSize(13)
       .fillColor(C.cardDark)
-      .text(title, ML + 10, MT + 3, { width: CW - 80, lineBreak: false });
-    // top-right brand
+      .text(this.sectionTitle, ML + 10, MT + 4, { width: CW - 90, lineBreak: false });
+    // Top-right brand
     this.doc
       .font("Helvetica")
-      .fontSize(7.5)
+      .fontSize(7)
       .fillColor(C.muted)
-      .text("AgentWitness", PW - ML - 70, MT + 6, {
-        width: 70,
-        align: "right",
-      });
-    // separator
+      .text("AgentWitness", PW - ML - 70, MT + 7, { width: 70, align: "right" });
     this.y = MT + 30;
     this.doc.rect(ML, this.y, CW, 0.75).fill(C.border);
     this.y += 10;
@@ -141,953 +131,902 @@ class R {
 
   // ── Primitives ──
 
-  vGap(n = 10) {
-    this.y += n;
-  }
+  vGap(n = 10) { this.y += n; }
 
-  label(text: string, color = C.muted, size = 8) {
-    this.doc.font("Helvetica-Bold").fontSize(size).fillColor(color).text(
-      text.toUpperCase(),
-      ML,
-      this.y,
-      { width: CW, characterSpacing: 0.6 }
-    );
-    this.y += size + 4;
+  sectionDivider(title: string, color?: string) {
+    const col = color ?? this.sectionColor;
+    this.vGap(8);
+    this.doc.rect(ML, this.y, CW, 1).fill(col + "44");
+    this.vGap(4);
+    this.doc
+      .font("Helvetica-Bold")
+      .fontSize(9)
+      .fillColor(col)
+      .text(title.toUpperCase(), ML, this.y, { characterSpacing: 0.5 });
+    this.y += 13;
   }
 
   paragraph(text: string, size = 9.5, color = C.body) {
-    this.doc
-      .font("Helvetica")
-      .fontSize(size)
-      .fillColor(color)
-      .text(text, ML, this.y, { width: CW });
+    this.doc.font("Helvetica").fontSize(size).fillColor(color).text(text, ML, this.y, { width: CW });
     this.y = this.doc.y + 4;
   }
 
-  // ── Metric grid: 3 columns ──
-
-  metricBox(
-    cols: { label: string; value: string; color: string }[],
-    boxH = 52
-  ) {
-    const colW = CW / cols.length;
-    cols.forEach(({ label, value, color }, i) => {
-      const x = ML + i * colW;
-      this.doc.rect(x, this.y, colW - 4, boxH).fill(C.lightBg);
-      this.doc.rect(x, this.y, 3, boxH).fill(color);
-      this.doc
-        .font("Helvetica")
-        .fontSize(7.5)
-        .fillColor(C.muted)
-        .text(label, x + 8, this.y + 8, { width: colW - 20 });
-      this.doc
-        .font("Helvetica-Bold")
-        .fontSize(18)
-        .fillColor(color)
-        .text(value, x + 8, this.y + 18, { width: colW - 20 });
-    });
-    this.y += boxH + 6;
-  }
-
-  // ── Two-column key/value list ──
-
-  kvRow(key: string, value: string, valueColor = C.body) {
-    this.doc
-      .font("Helvetica")
-      .fontSize(8.5)
-      .fillColor(C.muted)
-      .text(key, ML, this.y, { width: 140 });
+  label(text: string, color = C.muted, size = 8) {
     this.doc
       .font("Helvetica-Bold")
-      .fontSize(8.5)
-      .fillColor(valueColor)
-      .text(value, ML + 145, this.y, { width: CW - 145 });
+      .fontSize(size)
+      .fillColor(color)
+      .text(text.toUpperCase(), ML, this.y, { width: CW, characterSpacing: 0.5 });
+    this.y += size + 4;
+  }
+
+  kvRow(key: string, value: string, valueColor = C.body) {
+    this.doc.font("Helvetica").fontSize(8.5).fillColor(C.muted).text(key, ML, this.y, { width: 140 });
+    this.doc.font("Helvetica-Bold").fontSize(8.5).fillColor(valueColor).text(value, ML + 145, this.y, { width: CW - 145 });
     this.y += 14;
     this.doc.rect(ML, this.y - 2, CW, 0.4).fill(C.border);
   }
 
-  // ── Table ──
+  // 3-column KPI card row
+  kpiRow(cols: { label: string; value: string; color: string; sub?: string }[], h = 54) {
+    const colW = CW / cols.length;
+    cols.forEach(({ label, value, color, sub }, i) => {
+      const x = ML + i * colW;
+      this.doc.rect(x, this.y, colW - 4, h).fill(C.lightBg);
+      this.doc.rect(x, this.y, 3, h).fill(color);
+      this.doc.font("Helvetica").fontSize(7.5).fillColor(C.muted).text(label, x + 8, this.y + 7, { width: colW - 20 });
+      this.doc.font("Helvetica-Bold").fontSize(19).fillColor(color).text(value, x + 8, this.y + 16, { width: colW - 20 });
+      if (sub) {
+        this.doc.font("Helvetica").fontSize(7).fillColor(C.muted).text(sub, x + 8, this.y + 38, { width: colW - 20 });
+      }
+    });
+    this.y += h + 6;
+  }
+
+  progressBar(label: string, value: number, max: number, color: string, rightLabel?: string) {
+    const BAR_H = 6;
+    this.doc.font("Helvetica").fontSize(8.5).fillColor(C.body).text(label, ML, this.y, { width: CW - 60, lineBreak: false });
+    const rl = rightLabel ?? String(value);
+    this.doc.font("Helvetica-Bold").fontSize(8.5).fillColor(color).text(rl, ML + CW - 56, this.y, { width: 56, align: "right", lineBreak: false });
+    this.y += 12;
+    this.doc.rect(ML, this.y, CW, BAR_H).fill(C.border);
+    const fillW = max > 0 ? Math.round((value / max) * CW) : 0;
+    this.doc.rect(ML, this.y, fillW, BAR_H).fill(color);
+    this.y += BAR_H + 8;
+  }
+
+  badge(text: string, color: string, x: number, y: number, w = 56, h = 14) {
+    this.doc.rect(x, y, w, h).fill(color + "22");
+    this.doc.rect(x, y, 2.5, h).fill(color);
+    this.doc.font("Helvetica-Bold").fontSize(7.5).fillColor(color).text(text, x + 6, y + 3, { width: w - 10, lineBreak: false });
+  }
 
   table(
     headers: string[],
     colWidths: number[],
-    rows: { cells: string[]; rowColor?: string; textColors?: (string | null)[] }[],
-    accentColor: string,
-    sectionTitle: string
+    rows: { cells: string[]; textColors?: (string | null)[] }[],
   ) {
     const ROW_H = 20;
     const HDR_H = 22;
 
-    // header row
+    this.ensureSpace(HDR_H + ROW_H);
     this.doc.rect(ML, this.y, CW, HDR_H).fill(C.cardDark);
     let x = ML;
     headers.forEach((h, i) => {
-      this.doc
-        .font("Helvetica-Bold")
-        .fontSize(8)
-        .fillColor(C.white)
-        .text(h, x + 5, this.y + 7, {
-          width: colWidths[i] - 10,
-          lineBreak: false,
-        });
+      this.doc.font("Helvetica-Bold").fontSize(8).fillColor(C.white).text(h, x + 5, this.y + 7, {
+        width: colWidths[i] - 10,
+        lineBreak: false,
+      });
       x += colWidths[i];
     });
     this.y += HDR_H;
 
-    // data rows
     rows.forEach((row, ri) => {
-      this.ensureSpace(ROW_H + 4, accentColor, sectionTitle);
-      if (ri % 2 === 0) {
-        this.doc.rect(ML, this.y, CW, ROW_H).fill("#f8fafc");
-      }
+      this.ensureSpace(ROW_H + 4);
+      if (ri % 2 === 0) this.doc.rect(ML, this.y, CW, ROW_H).fill(C.lightBg);
       x = ML;
       row.cells.forEach((cell, ci) => {
-        const textColor =
-          row.textColors?.[ci] ?? C.body;
-        this.doc
-          .font("Helvetica")
-          .fontSize(8)
-          .fillColor(textColor)
-          .text(cell, x + 5, this.y + 6, {
-            width: colWidths[ci] - 10,
-            lineBreak: false,
-            ellipsis: true,
-          });
+        const tc = row.textColors?.[ci] ?? C.body;
+        this.doc.font("Helvetica").fontSize(8).fillColor(tc).text(cell, x + 5, this.y + 6, {
+          width: colWidths[ci] - 10,
+          lineBreak: false,
+          ellipsis: true,
+        });
         x += colWidths[ci];
       });
       this.doc.rect(ML, this.y + ROW_H - 0.3, CW, 0.3).fill(C.border);
       this.y += ROW_H;
     });
 
-    // bottom border
     this.doc.rect(ML, this.y, CW, 1).fill(C.border);
     this.y += 6;
   }
 
-  // ── Evidence row (criteria + control + result) ──
-
-  criteriaRow(
-    criteria: string,
-    description: string,
-    evidence: string,
-    pass: boolean
-  ) {
-    const ROW_H = 38;
-    this.ensureSpace(ROW_H + 4, "", "");
-    const COLS = [90, 130, 220, 47];
+  criteriaRow(criteria: string, description: string, evidence: string, pass: boolean) {
+    const ROW_H = 40;
+    this.ensureSpace(ROW_H + 4);
+    const COLS = [78, 118, 220, 71];
     const texts = [criteria, description, evidence, pass ? "PASS" : "FAIL"];
-    const bgColor = this.y % 80 < 40 ? "#f8fafc" : C.white; // alternating
-    this.doc.rect(ML, this.y, CW, ROW_H).fill(bgColor);
-    if (pass) {
-      this.doc.rect(ML, this.y, 3, ROW_H).fill(C.green);
-    } else {
-      this.doc.rect(ML, this.y, 3, ROW_H).fill(C.red);
-    }
+    const bg = this.y % 80 < 40 ? C.lightBg : C.white;
+    this.doc.rect(ML, this.y, CW, ROW_H).fill(bg);
+    this.doc.rect(ML, this.y, 3, ROW_H).fill(pass ? C.green : C.red);
     let x = ML + 3;
     texts.forEach((t, i) => {
-      const fc =
-        i === 3 ? (pass ? C.green : C.red) : i === 0 ? C.indigo : C.body;
+      const fc = i === 3 ? (pass ? C.green : C.red) : i === 0 ? C.indigo : C.body;
       const fw = i === 0 || i === 3 ? "Helvetica-Bold" : "Helvetica";
-      this.doc
-        .font(fw)
-        .fontSize(8)
-        .fillColor(fc)
-        .text(t, x + 4, this.y + 5, { width: COLS[i] - 8, height: ROW_H - 8 });
+      this.doc.font(fw).fontSize(8).fillColor(fc).text(t, x + 4, this.y + 5, {
+        width: COLS[i] - 8,
+        height: ROW_H - 8,
+      });
       x += COLS[i];
     });
     this.doc.rect(ML, this.y + ROW_H - 0.3, CW, 0.3).fill(C.border);
     this.y += ROW_H;
   }
 
-  sectionDivider(title: string, color: string) {
-    this.vGap(8);
-    this.doc.rect(ML, this.y, CW, 1).fill(color + "44");
-    this.vGap(4);
+  // Governance score ring (arc-based gauge)
+  governanceRing(cx: number, cy: number, score: number) {
+    const radius = 36;
+    const lw = 9;
+    const color = govColor(score);
+    const startAngle = -Math.PI / 2;
+    const endAngle = startAngle + (Math.max(score, 0) / 100) * 2 * Math.PI;
+
+    // Background track
+    this.doc
+      .save()
+      .lineWidth(lw)
+      .strokeColor(C.border)
+      .circle(cx, cy, radius)
+      .stroke()
+      .restore();
+
+    // Score arc (pdfkit 0.19.1 has arc() at runtime; TS types lag behind)
+    if (score > 0) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const docAny = this.doc as any;
+      docAny.save()
+        .lineWidth(lw)
+        .strokeColor(color)
+        .arc(cx, cy, radius, startAngle, endAngle)
+        .stroke()
+        .restore();
+    }
+
+    // Center text
     this.doc
       .font("Helvetica-Bold")
-      .fontSize(9.5)
+      .fontSize(17)
       .fillColor(color)
-      .text(title.toUpperCase(), ML, this.y, { characterSpacing: 0.5 });
-    this.y += 14;
-  }
-
-  progressBar(
-    label: string,
-    value: number,
-    max: number,
-    color: string,
-    rightLabel?: string
-  ) {
-    const BAR_H = 6;
+      .text(String(score), cx - 22, cy - 11, { width: 44, align: "center", lineBreak: false });
     this.doc
       .font("Helvetica")
-      .fontSize(8.5)
-      .fillColor(C.body)
-      .text(label, ML, this.y, { width: CW - 50, lineBreak: false });
-    const rl = rightLabel ?? String(value);
-    this.doc
-      .font("Helvetica-Bold")
-      .fontSize(8.5)
-      .fillColor(color)
-      .text(rl, ML + CW - 46, this.y, { width: 46, align: "right", lineBreak: false });
-    this.y += 12;
-    // track
-    this.doc.rect(ML, this.y, CW, BAR_H).fill("#e2e8f0");
-    // fill
-    const fillW = max > 0 ? Math.round((value / max) * CW) : 0;
-    this.doc.rect(ML, this.y, fillW, BAR_H).fill(color);
-    this.y += BAR_H + 8;
-  }
-
-  badge(text: string, color: string, x: number, y: number, w = 60, h = 14) {
-    this.doc.rect(x, y, w, h).fill(color + "22");
-    this.doc.rect(x, y, 2.5, h).fill(color);
-    this.doc
-      .font("Helvetica-Bold")
-      .fontSize(7.5)
-      .fillColor(color)
-      .text(text, x + 6, y + 3, { width: w - 10, lineBreak: false });
+      .fontSize(7)
+      .fillColor(C.muted)
+      .text("/100", cx - 22, cy + 8, { width: 44, align: "center", lineBreak: false });
   }
 }
 
-// ── Page builders ──────────────────────────────────────────────────────────────
+// ── Page builders ─────────────────────────────────────────────────────────────
 
 function buildCoverPage(r: R, data: ReportData) {
   const doc = r.doc;
 
-  // Full dark background
   doc.rect(0, 0, PW, PH).fill(C.pageDark);
-
-  // Cyan accent bar at very top
   doc.rect(0, 0, PW, 5).fill(C.cyan);
 
   // Wordmark
-  doc.font("Helvetica-Bold").fontSize(10).fillColor(C.cyan).text(
-    "AGENTWITNESS",
-    ML,
-    52,
-    { characterSpacing: 2 }
-  );
-  doc.rect(ML, 68, 20, 2).fill(C.cyan);
+  doc.font("Helvetica-Bold").fontSize(9).fillColor(C.cyan).text("AGENTWITNESS", ML, 52, { characterSpacing: 2.5 });
+  doc.rect(ML, 67, 22, 2).fill(C.cyan);
 
   // Title block
-  doc.font("Helvetica-Bold").fontSize(36).fillColor(C.white).text(
-    "AI GOVERNANCE",
-    ML,
-    108,
-    { width: CW }
-  );
-  doc.font("Helvetica-Bold").fontSize(36).fillColor(C.white).text(
-    "COMPLIANCE",
-    ML,
-    150,
-    { width: CW }
-  );
-  doc.font("Helvetica-Bold").fontSize(36).fillColor(C.cyan).text(
-    "REPORT",
-    ML,
-    192,
-    { width: CW }
-  );
+  doc.font("Helvetica-Bold").fontSize(38).fillColor(C.white).text("AI GOVERNANCE", ML, 100, { width: CW });
+  doc.font("Helvetica-Bold").fontSize(38).fillColor(C.white).text("COMPLIANCE", ML, 145, { width: CW });
+  doc.font("Helvetica-Bold").fontSize(38).fillColor(C.cyan).text("REPORT", ML, 190, { width: CW });
 
   // Standards badges
-  let bx = ML;
   const badges = [
     { text: "SOC 2 Type II", color: C.indigo },
-    { text: "EU AI Act", color: C.purple },
-    { text: "Audit Trail", color: C.amber },
+    { text: "EU AI Act 2024/1689", color: C.purple },
+    { text: "ISO 27001:2022", color: C.amber },
   ];
+  let bx = ML;
   badges.forEach(({ text, color }) => {
-    doc.rect(bx, 248, 100, 18).fill(color + "28");
-    doc.rect(bx, 248, 2.5, 18).fill(color);
-    doc.font("Helvetica-Bold").fontSize(7.5).fillColor(color).text(
-      text,
-      bx + 7,
-      252,
-      { width: 90, lineBreak: false }
-    );
-    bx += 110;
+    doc.rect(bx, 244, 112, 18).fill(color + "28");
+    doc.rect(bx, 244, 2.5, 18).fill(color);
+    doc.font("Helvetica-Bold").fontSize(7.5).fillColor(color).text(text, bx + 7, 249, { width: 102, lineBreak: false });
+    bx += 120;
   });
 
-  // Cyan separator
-  doc.rect(ML, 284, CW, 1).fill(C.cyan + "40");
+  doc.rect(ML, 280, CW, 0.75).fill(C.cyan + "40");
 
-  // Metadata block
+  // Metadata
   const meta: [string, string][] = [
     ["ORGANIZATION", data.tenantName],
     ["REPORT PERIOD", `${fmtDate(data.periodStart)} — ${fmtDate(data.periodEnd)}`],
-    ["GENERATED", `${fmtDate(data.generatedAt)}`],
-    ["STANDARDS", data.standards.join("  ·  ")],
-    ["CLASSIFICATION", "CONFIDENTIAL"],
+    ["GENERATED ON", fmtDate(data.generatedAt)],
+    ["STANDARDS COVERED", data.standards.join("  ·  ")],
+    ["CLASSIFICATION", "CONFIDENTIAL — AUTHORIZED RECIPIENTS ONLY"],
   ];
-  let my = 300;
+  let my = 295;
   meta.forEach(([k, v]) => {
-    doc.font("Helvetica").fontSize(8).fillColor(C.muted).text(k, ML, my, {
-      width: CW,
-      characterSpacing: 0.5,
-    });
-    doc.font("Helvetica-Bold").fontSize(12).fillColor(C.white).text(v, ML, my + 11, {
-      width: CW,
-    });
-    doc.rect(ML, my + 28, CW, 0.5).fill(C.borderDark);
-    my += 38;
+    doc.font("Helvetica").fontSize(7.5).fillColor(C.muted).text(k, ML, my, { characterSpacing: 0.4 });
+    doc.font("Helvetica-Bold").fontSize(11.5).fillColor(C.white).text(v, ML, my + 11, { width: CW });
+    doc.rect(ML, my + 28, CW, 0.4).fill(C.borderDark);
+    my += 37;
   });
 
   // Governance score hero card
-  const cardY = 510;
-  doc.rect(ML, cardY, CW, 72).fill(C.cardDark);
-  doc.rect(ML, cardY, 4, 72).fill(C.cyan);
+  const cardY = 490;
+  doc.rect(ML, cardY, CW, 78).fill(C.cardDark);
+  doc.rect(ML, cardY, 4, 78).fill(C.cyan);
 
   const gc = govColor(data.governance.score);
-  doc.font("Helvetica-Bold").fontSize(46).fillColor(gc).text(
-    String(data.governance.score),
-    ML + 16,
-    cardY + 10,
-    { width: 72, lineBreak: false }
-  );
-  doc.font("Helvetica-Bold").fontSize(9).fillColor(C.white).text(
-    "GOVERNANCE SCORE",
-    ML + 96,
-    cardY + 14
-  );
-  doc.font("Helvetica").fontSize(8.5).fillColor(C.muted).text(
-    `Risk Level: ${data.governance.level}`,
-    ML + 96,
-    cardY + 28
-  );
+
+  // Ring on left
+  r.governanceRing(ML + 56, cardY + 39, data.governance.score);
+
+  // Details on right
+  doc.font("Helvetica-Bold").fontSize(10).fillColor(C.white).text("GOVERNANCE SCORE", ML + 108, cardY + 12);
+  doc.font("Helvetica").fontSize(9).fillColor(C.muted).text(`Risk Level: ${data.governance.level}`, ML + 108, cardY + 27);
   doc.font("Helvetica").fontSize(8).fillColor(C.muted).text(
-    `${data.metrics.totalActions.toLocaleString()} total actions  ·  ` +
-      `${data.governance.blockedCount} blocked  ·  ` +
-      `${data.governance.flaggedCount} flagged`,
-    ML + 96,
-    cardY + 42
+    `${data.metrics.totalActions.toLocaleString()} total actions  ·  ${data.governance.blockedCount} blocked  ·  ${data.governance.flaggedCount} flagged`,
+    ML + 108, cardY + 42
+  );
+  doc.font("Helvetica").fontSize(8).fillColor(gc).text(
+    data.governance.score >= 80 ? "✓ Compliant Posture" : data.governance.score >= 50 ? "⚠ Review Required" : "✗ Critical — Remediation Needed",
+    ML + 108, cardY + 57
   );
 
-  // Three sub-score badges
-  const subY = cardY + 86;
-  const subData = [
+  // 3 sub-metric tiles
+  const subY = cardY + 92;
+  const subItems = [
     {
       label: "Compliance Rate",
-      value:
-        data.metrics.totalActions > 0
-          ? `${Math.round((data.metrics.totalActions - data.governance.blockedCount) / data.metrics.totalActions * 100)}%`
-          : "—",
+      value: data.metrics.totalActions > 0
+        ? `${Math.round(((data.metrics.totalActions - data.governance.blockedCount) / data.metrics.totalActions) * 100)}%`
+        : "—",
       color: C.green,
     },
-    {
-      label: "Blocked Actions",
-      value: String(data.governance.blockedCount),
-      color: C.red,
-    },
-    {
-      label: "Active Policies",
-      value: String(data.metrics.policiesActive),
-      color: C.cyan,
-    },
+    { label: "Policy Violations", value: String(data.governance.blockedCount + data.governance.flaggedCount), color: C.red },
+    { label: "Active Policies", value: String(data.metrics.policiesActive), color: C.cyan },
   ];
-  subData.forEach(({ label, value, color }, i) => {
+  subItems.forEach(({ label, value, color }, i) => {
     const sx = ML + i * (CW / 3);
-    doc.rect(sx, subY, CW / 3 - 4, 36).fill(C.borderDark);
-    doc.font("Helvetica").fontSize(7.5).fillColor(C.muted).text(label, sx + 8, subY + 5, {
-      width: CW / 3 - 20,
-    });
-    doc.font("Helvetica-Bold").fontSize(16).fillColor(color).text(value, sx + 8, subY + 15, {
-      width: CW / 3 - 20,
-    });
+    doc.rect(sx, subY, CW / 3 - 4, 38).fill(C.borderDark);
+    doc.font("Helvetica").fontSize(7.5).fillColor(C.muted).text(label, sx + 8, subY + 6, { width: CW / 3 - 20 });
+    doc.font("Helvetica-Bold").fontSize(17).fillColor(color).text(value, sx + 8, subY + 16, { width: CW / 3 - 20 });
   });
 
-  // Footer bar
-  doc.rect(0, PH - 44, PW, 44).fill(C.cardDark);
+  // Bottom strip
+  const stripY = PH - 44;
+  doc.rect(0, stripY, PW, 44).fill(C.cardDark);
   doc.font("Helvetica").fontSize(7.5).fillColor(C.muted).text(
-    "This document is confidential and intended solely for authorized recipients of the named organization.",
-    ML,
-    PH - 32,
-    { width: CW, align: "center" }
+    "This document is confidential and intended solely for authorized recipients of the named organization. Do not distribute.",
+    ML, stripY + 10, { width: CW, align: "center" }
   );
-  doc.font("Helvetica").fontSize(7).fillColor(C.borderDark).text(
-    `AgentWitness Platform  ·  ${data.generatedAt.toISOString().slice(0, 19)}Z`,
-    ML,
-    PH - 18,
-    { width: CW, align: "center" }
+  doc.font("Helvetica").fontSize(6.5).fillColor(C.borderDark + "ff").text(
+    `AgentWitness Enterprise Platform  ·  ${data.generatedAt.toISOString().slice(0, 19)}Z`,
+    ML, stripY + 26, { width: CW, align: "center" }
   );
 }
 
+// Page 2 — Executive Summary
 function buildExecutiveSummary(r: R, data: ReportData) {
   const { metrics, governance } = data;
-  const complianceRate =
-    metrics.totalActions > 0
-      ? Math.round(
-          ((metrics.totalActions - governance.blockedCount) /
-            metrics.totalActions) *
-            100
-        )
-      : 100;
+  const compRate = metrics.totalActions > 0
+    ? Math.round(((metrics.totalActions - governance.blockedCount) / metrics.totalActions) * 100)
+    : 100;
+  const blockedPct = metrics.totalActions > 0 ? Math.round((governance.blockedCount / metrics.totalActions) * 100) : 0;
 
   r.vGap(4);
-  r.metricBox([
-    {
-      label: "Total Actions Monitored",
-      value: metrics.totalActions.toLocaleString(),
-      color: C.cyan,
-    },
-    {
-      label: "Blocked (Policy Enforcement)",
-      value: String(governance.blockedCount),
-      color: C.red,
-    },
-    {
-      label: "Flagged (Requires Review)",
-      value: String(governance.flaggedCount),
-      color: C.amber,
-    },
+
+  // KPI row 1
+  r.kpiRow([
+    { label: "Total Actions Monitored", value: metrics.totalActions.toLocaleString(), color: C.cyan },
+    { label: "Blocked (Policy Enforcement)", value: String(governance.blockedCount), color: C.red, sub: `${blockedPct}% of total` },
+    { label: "Flagged (Needs Review)", value: String(governance.flaggedCount), color: C.amber },
   ]);
 
-  r.metricBox([
-    {
-      label: "Compliance Rate",
-      value: `${complianceRate}%`,
-      color: C.green,
-    },
-    {
-      label: "Active Policies",
-      value: String(metrics.policiesActive),
-      color: C.indigo,
-    },
-    {
-      label: "AI Spend Monitored",
-      value: `$${metrics.totalAiSpend.toFixed(2)}`,
-      color: C.purple,
-    },
+  // KPI row 2
+  r.kpiRow([
+    { label: "Compliance Rate", value: `${compRate}%`, color: C.green, sub: compRate >= 95 ? "Excellent" : compRate >= 80 ? "Good" : "Needs Attention" },
+    { label: "Active Governance Policies", value: String(metrics.policiesActive), color: C.indigo },
+    { label: "AI Agents Monitored", value: String(metrics.agentsMonitored), color: C.purple },
   ]);
 
-  r.sectionDivider("Governance Posture", C.cyan);
+  // Governance posture row — ring + details side by side
+  r.sectionDivider("Governance Posture");
 
-  r.kvRow("Governance Score", `${governance.score}/100`, govColor(governance.score));
-  r.kvRow("Risk Level", governance.level, govColor(governance.score));
-  r.kvRow("Agents Monitored", String(metrics.agentsMonitored));
-  r.kvRow("Policies Enforced", String(metrics.policiesActive));
-  r.kvRow("High-Cost Anomalies", String(governance.highCostCount), C.amber);
-  r.kvRow("Period", `${fmtDate(data.periodStart)} — ${fmtDate(data.periodEnd)}`);
+  const ringX = ML + 46;
+  const ringY = r.y + 46;
+  r.governanceRing(ringX, ringY, governance.score);
 
-  r.vGap(10);
-  r.sectionDivider("Top Risk Agents", C.red);
+  // Details next to ring
+  const dx = ML + 108;
+  const dy = r.y;
+  r.doc
+    .font("Helvetica-Bold").fontSize(10).fillColor(C.cardDark)
+    .text("Overall Governance Score", dx, dy, { width: CW - 120 });
+  r.doc
+    .font("Helvetica").fontSize(8.5).fillColor(C.muted)
+    .text(
+      `Risk level: ${governance.level}  ·  Period: ${fmtDate(data.periodStart)} – ${fmtDate(data.periodEnd)}`,
+      dx, dy + 14, { width: CW - 120 }
+    );
+  const total = data.metrics.totalActions;
+  const bPct = total > 0 ? ((governance.blockedCount / total) * 100).toFixed(1) : "0.0";
+  const fPct = total > 0 ? ((governance.flaggedCount / total) * 100).toFixed(1) : "0.0";
+  r.doc
+    .font("Helvetica").fontSize(8.5).fillColor(C.body)
+    .text(
+      `Score = 100 − (blocked% × 100) − (flagged% × 40) − (highCost% × 20). ` +
+      `Blocked: ${bPct}%  ·  Flagged: ${fPct}%  ·  Final: ${governance.score}/100.`,
+      dx, dy + 28, { width: CW - 120 }
+    );
 
-  r.table(
-    ["Agent", "Risk Score", "Blocked", "Flagged"],
-    [220, 100, 90, 77],
-    data.topRiskAgents.map((a) => ({
-      cells: [a.agentName, String(a.riskScore), String(a.blockedCount), String(a.flaggedCount)],
-      textColors: [C.body, a.riskScore > 5 ? C.red : C.amber, C.red, C.amber],
-    })),
-    C.cyan,
-    "Executive Summary"
+  r.y = Math.max(ringY + 55, dy + 60);
+  r.vGap(8);
+
+  r.sectionDivider("Key Findings");
+
+  r.paragraph(
+    `During the reporting period (${fmtDate(data.periodStart)} to ${fmtDate(data.periodEnd)}), ` +
+    `AgentWitness monitored ${metrics.totalActions.toLocaleString()} AI agent actions across ` +
+    `${metrics.agentsMonitored} deployed agents. The platform enforced ${metrics.policiesActive} active ` +
+    `governance policies, resulting in a ${compRate}% compliance rate. ` +
+    `${governance.blockedCount} actions were blocked automatically and ${governance.flaggedCount} were ` +
+    `flagged for human review. Total AI spend monitored: $${metrics.totalAiSpend.toFixed(2)}.`,
+    9, C.body
   );
+
+  r.vGap(8);
+  r.sectionDivider("Audit Scope");
+  r.kvRow("Organization", data.tenantName);
+  r.kvRow("Period", `${fmtDate(data.periodStart)} — ${fmtDate(data.periodEnd)}`);
+  r.kvRow("Standards Assessed", data.standards.join("  ·  "));
+  r.kvRow("Agents in Scope", String(metrics.agentsMonitored));
+  r.kvRow("Total Events in Scope", metrics.totalActions.toLocaleString());
+  r.kvRow("High-Cost Anomalies", String(governance.highCostCount), C.amber);
 }
 
-function buildSoc2Evidence(r: R, data: ReportData) {
+// Page 3 — Risk Overview
+function buildRiskOverview(r: R, data: ReportData) {
+  const { metrics, governance } = data;
+  const allowed = metrics.totalActions - governance.blockedCount - governance.flaggedCount;
+  const compPct = metrics.totalActions > 0 ? Math.round((allowed / metrics.totalActions) * 100) : 100;
+  const flaggedPct = metrics.totalActions > 0 ? Math.round((governance.flaggedCount / metrics.totalActions) * 100) : 0;
+  const blockedPct = metrics.totalActions > 0 ? Math.round((governance.blockedCount / metrics.totalActions) * 100) : 0;
+
   r.vGap(4);
+  r.sectionDivider("Action Outcome Distribution");
+
+  r.progressBar(
+    "Allowed (policy compliant)",
+    allowed, metrics.totalActions, C.green,
+    `${allowed.toLocaleString()} (${compPct}%)`
+  );
+  r.progressBar(
+    "Flagged (pending human review)",
+    governance.flaggedCount, metrics.totalActions, C.amber,
+    `${governance.flaggedCount} (${flaggedPct}%)`
+  );
+  r.progressBar(
+    "Blocked (automatic policy enforcement)",
+    governance.blockedCount, metrics.totalActions, C.red,
+    `${governance.blockedCount} (${blockedPct}%)`
+  );
+
+  r.vGap(6);
+  r.sectionDivider("Top Risk Agents");
+
+  if (data.topRiskAgents.length === 0) {
+    r.paragraph("No high-risk agents detected in this period.", 9, C.muted);
+  } else {
+    r.table(
+      ["Agent Name", "Risk Score", "Blocked Actions", "Flagged Actions"],
+      [223, 88, 100, 76],
+      data.topRiskAgents.map((a) => ({
+        cells: [a.agentName, String(a.riskScore), String(a.blockedCount), String(a.flaggedCount)],
+        textColors: [C.body, a.riskScore > 5 ? C.red : C.amber, C.red, C.amber],
+      }))
+    );
+  }
+
+  r.vGap(6);
+  r.sectionDivider("Policy Trigger Frequency");
+
+  if (data.policyBreakdown.length === 0) {
+    r.paragraph("No policy triggers recorded in this period.", 9, C.muted);
+  } else {
+    r.table(
+      ["Policy Name", "Trigger Count"],
+      [370, 117],
+      data.policyBreakdown.map((p) => ({
+        cells: [p.policyName, String(p.hitCount)],
+        textColors: [C.body, p.hitCount > 0 ? C.red : C.muted],
+      }))
+    );
+  }
+}
+
+// Page 4 — Agent Trust Intelligence
+function buildAgentTrustIntelligence(r: R, data: ReportData) {
+  r.vGap(4);
+
   r.paragraph(
-    "The following evidence maps AgentWitness platform controls to SOC 2 Trust " +
-      "Service Criteria (TSC) as defined by the AICPA. All controls are enforced " +
-      "at the platform layer and applied uniformly across all tenant AI agents.",
-    9
+    "Agent Trust Scores are computed continuously from each agent's violation history, compliance rate, " +
+    "and behavioral consistency. Scores below 50 indicate critical risk and warrant immediate review. " +
+    "Trend arrows reflect movement relative to the prior 7-day period.",
+    9, C.body
   );
   r.vGap(8);
 
-  // Table header
-  const { doc, y } = r;
-  const colW = [78, 118, 220, 71];
+  r.sectionDivider("Trust Score Legend");
+
+  // Legend badges inline
+  const legendItems = [
+    { label: "≥ 80  Trusted", color: C.green },
+    { label: "50–79  At Risk", color: C.amber },
+    { label: "< 50  Critical", color: C.red },
+    { label: "↑ Improving", color: C.cyan },
+    { label: "↓ Degrading", color: C.red },
+  ];
+  legendItems.forEach(({ label, color }, i) => {
+    r.badge(label, color, ML + i * 96, r.y, 90, 14);
+  });
+  r.y += 22;
+
+  r.sectionDivider("Per-Agent Trust Report");
+
+  if (data.agentTrustScores.length === 0) {
+    r.paragraph("No agent trust data available for this reporting period.", 9, C.muted);
+  } else {
+    r.table(
+      ["Agent", "Framework", "Trust", "Compliance", "Viol. Rate", "Actions", "Trend"],
+      [122, 72, 58, 66, 62, 60, 47],
+      data.agentTrustScores.map((a) => {
+        const tc = a.trustScore >= 80 ? C.green : a.trustScore >= 50 ? C.amber : C.red;
+        const trendLabel = a.riskTrend === "improving" ? "↑ Up" : a.riskTrend === "degrading" ? "↓ Down" : "→ Flat";
+        const trendColor = a.riskTrend === "improving" ? C.green : a.riskTrend === "degrading" ? C.red : C.muted;
+        return {
+          cells: [
+            truncStr(a.agentName, 20),
+            truncStr(a.agentFramework ?? "—", 12),
+            `${a.trustScore}/100`,
+            `${a.complianceScore}%`,
+            `${(a.violationRate * 100).toFixed(1)}%`,
+            String(a.totalActions ?? "—"),
+            trendLabel,
+          ],
+          textColors: [C.body, C.muted, tc, C.cyan, a.violationRate > 0.1 ? C.red : C.muted, C.muted, trendColor],
+        };
+      })
+    );
+  }
+
+  r.vGap(8);
+  r.sectionDivider("Governance Score Breakdown");
+  const tot = data.metrics.totalActions;
+  const bPctRaw = tot > 0 ? (data.governance.blockedCount / tot) * 100 : 0;
+  const fPctRaw = tot > 0 ? (data.governance.flaggedCount / tot) * 100 : 0;
+  const hPctRaw = tot > 0 ? (data.governance.highCostCount / tot) * 100 : 0;
+  r.kvRow("Formula", "100 − (blockedPct × 100) − (flaggedPct × 40) − (highCostPct × 20)");
+  r.kvRow("Total Actions in Scope", tot.toLocaleString());
+  r.kvRow("Blocked Rate", `${bPctRaw.toFixed(1)}%  →  deduction: ${(bPctRaw).toFixed(1)} pts`);
+  r.kvRow("Flagged Rate", `${fPctRaw.toFixed(1)}%  →  deduction: ${(fPctRaw * 0.4).toFixed(1)} pts`);
+  r.kvRow("High-Cost Rate", `${hPctRaw.toFixed(1)}%  →  deduction: ${(hPctRaw * 0.2).toFixed(1)} pts`);
+  r.kvRow("Final Governance Score", `${data.governance.score}/100`, govColor(data.governance.score));
+}
+
+// Page 5 — Incident Timeline
+function buildIncidentTimeline(r: R, data: ReportData) {
+  r.vGap(4);
+
+  if (data.incidents.length === 0) {
+    r.kpiRow([
+      { label: "Critical Incidents", value: "0", color: C.green, sub: "No incidents recorded" },
+      { label: "Agents Affected", value: "0", color: C.green },
+      { label: "Auto-Blocked", value: "0", color: C.green },
+    ]);
+    r.paragraph(
+      "No critical incidents were recorded during the reporting period. All AI agent actions " +
+      "were within configured governance boundaries. This represents full compliance for the incident domain.",
+      9.5, C.green
+    );
+    return;
+  }
+
+  const uniqueAgents = new Set(data.incidents.map((i) => i.agentName)).size;
+  const autoBlocked = data.incidents.filter((i) => i.actionType?.toLowerCase().includes("block") || i.policyName).length;
+
+  r.kpiRow([
+    { label: "Critical Incidents (Period)", value: String(data.incidents.length), color: C.red },
+    { label: "Unique Agents Affected", value: String(uniqueAgents), color: C.amber },
+    { label: "Auto-Blocked by Policy", value: String(autoBlocked), color: C.indigo },
+  ]);
+
+  r.sectionDivider("Incident Log");
+
+  const displayRows = data.incidents.slice(0, 15);
+  r.table(
+    ["Timestamp", "Agent", "Action Type", "Policy Triggered", "Input Summary"],
+    [72, 98, 88, 104, 125],
+    displayRows.map((inc) => ({
+      cells: [
+        fmtShortDt(inc.timestamp),
+        truncStr(inc.agentName, 16),
+        truncStr(inc.actionType, 14),
+        truncStr(inc.policyName, 18),
+        truncStr(inc.inputSummary, 24),
+      ],
+      textColors: [C.muted, C.body, C.body, C.red, C.muted],
+    }))
+  );
+
+  if (data.incidents.length > 15) {
+    r.paragraph(
+      `Displaying 15 of ${data.incidents.length} incidents. The complete incident feed is available in the AgentWitness dashboard.`,
+      7.5, C.muted
+    );
+  }
+
+  r.vGap(8);
+  r.sectionDivider("Incident Classification");
+  r.paragraph(
+    "All incidents above represent events where an AI agent action triggered a governance policy. " +
+    "Blocked actions were prevented from completing by the AgentWitness policy engine in real time. " +
+    "Each event is recorded with a full immutable audit record including agent identity, action type, " +
+    "input and output summaries, applicable policy, and UTC timestamp.",
+    9, C.body
+  );
+}
+
+// Page 6 — Forensic Analysis
+function buildForensicAnalysis(r: R, data: ReportData) {
+  r.vGap(4);
+
+  r.sectionDivider("Policy Violation Deep Dive");
+
+  if (data.governance.blockedCount === 0 && data.governance.flaggedCount === 0) {
+    r.paragraph(
+      "No policy violations recorded in this reporting period. All AI agent actions were within " +
+      "configured governance boundaries.",
+      9.5, C.green
+    );
+  } else {
+    r.kpiRow([
+      { label: "Hard Blocks (auto-stopped)", value: String(data.governance.blockedCount), color: C.red },
+      { label: "Soft Flags (needs review)", value: String(data.governance.flaggedCount), color: C.amber },
+      { label: "High-Cost Anomalies", value: String(data.governance.highCostCount), color: C.purple },
+    ]);
+  }
+
+  r.sectionDivider("Policy Hit Distribution");
+
+  if (data.policyBreakdown.length > 0) {
+    const maxHits = Math.max(...data.policyBreakdown.map((p) => p.hitCount), 1);
+    data.policyBreakdown.slice(0, 8).forEach((p) => {
+      const color = p.hitCount > 5 ? C.red : p.hitCount > 0 ? C.amber : C.green;
+      r.progressBar(
+        truncStr(p.policyName, 52),
+        p.hitCount,
+        maxHits,
+        color,
+        String(p.hitCount) + (p.hitCount === 1 ? " trigger" : " triggers")
+      );
+    });
+  } else {
+    r.paragraph("No policy triggers recorded.", 9, C.muted);
+  }
+
+  r.vGap(6);
+  r.sectionDivider("Cost & Spend Analysis");
+
+  const costPerAction = data.metrics.totalActions > 0 ? data.metrics.totalAiSpend / data.metrics.totalActions : 0;
+  r.kvRow("Total AI Spend Monitored", `$${data.metrics.totalAiSpend.toFixed(2)}`, C.cyan);
+  r.kvRow("Average Cost per Action", `$${costPerAction.toFixed(4)}`);
+  r.kvRow("High-Cost Action Count", String(data.governance.highCostCount), data.governance.highCostCount > 0 ? C.amber : C.green);
+  r.kvRow("Total Actions in Period", data.metrics.totalActions.toLocaleString());
+
+  r.vGap(8);
+  r.sectionDivider("Audit Trail Integrity Statement");
+  r.paragraph(
+    "All audit records in this report are stored in Amazon Aurora PostgreSQL with write-once " +
+    "semantics enforced at the application layer. Records include: agent identifier, action type, " +
+    "UTC timestamp, input summary, output summary, applicable policy, and policy decision. " +
+    "Data is isolated per tenant via Row Level Security and retained for the full audit period " +
+    "with no deletions or modifications permitted post-insertion.",
+    9, C.body
+  );
+}
+
+// Page 7 — SOC 2 Type II
+function buildSoc2(r: R, data: ReportData) {
+  r.vGap(4);
+  r.paragraph(
+    "The following evidence maps AgentWitness platform controls to SOC 2 Trust Service Criteria (TSC) " +
+    "as defined by the AICPA. All controls are enforced at the platform layer and applied uniformly across " +
+    "all tenant AI agents.",
+    9, C.body
+  );
+  r.vGap(8);
+
   const headers = ["TSC Ref", "Control Area", "AgentWitness Evidence", "Status"];
-  doc.rect(ML, y, CW, 22).fill(C.cardDark);
+  const colW = [78, 118, 220, 71];
+  r.doc.rect(ML, r.y, CW, 22).fill(C.cardDark);
   let x = ML;
   headers.forEach((h, i) => {
-    doc.font("Helvetica-Bold").fontSize(8).fillColor(C.white).text(h, x + 4, y + 7, {
-      width: colW[i] - 8,
-      lineBreak: false,
-    });
+    r.doc.font("Helvetica-Bold").fontSize(8).fillColor(C.white).text(h, x + 4, r.y + 7, { width: colW[i] - 8, lineBreak: false });
     x += colW[i];
   });
   r.y += 22;
 
   const rows: [string, string, string, boolean][] = [
-    [
-      "CC1.1",
-      "Control Environment",
-      `${data.metrics.policiesActive} active policies enforce ethical AI usage boundaries across all agents.`,
-      true,
-    ],
-    [
-      "CC6.1",
-      "Logical Access Controls",
-      "All agent actions are evaluated against policy rules before execution. Unauthorized actions are automatically blocked.",
-      true,
-    ],
-    [
-      "CC6.3",
-      "System Boundaries",
-      "Multi-tenant architecture enforces strict isolation via Row Level Security on all data tables.",
-      true,
-    ],
-    [
-      "CC7.2",
-      "System Monitoring",
-      `${data.metrics.totalActions.toLocaleString()} agent actions logged with immutable audit trails including timestamps and policy decisions.`,
-      true,
-    ],
-    [
-      "CC7.4",
-      "Security Incidents",
-      `${data.governance.blockedCount} threats automatically neutralized. Real-time alerting and incident classification in place.`,
-      data.governance.blockedCount >= 0,
-    ],
-    [
-      "CC9.2",
-      "Risk Mitigation",
-      "Continuous risk scoring per agent. Trust scores computed from violation history. Emergency kill-switch available.",
-      true,
-    ],
-    [
-      "A1.1",
-      "Availability",
-      "Audit trail preserved with full event history. System availability monitored via health endpoint.",
-      true,
-    ],
-    [
-      "PI1.1",
-      "Processing Integrity",
-      "Every AI action produces a structured audit record with input summary, output summary, and policy decision.",
-      true,
-    ],
-    [
-      "C1.1",
-      "Confidentiality",
-      "Data masking policies enforced at the AI output layer. PII exposure prevented by automated policy evaluation.",
-      data.governance.blockedCount >= 0,
-    ],
-    [
-      "P1.1",
-      "Privacy",
-      "Customer data access by AI agents is logged, evaluated, and subject to data masking and domain block policies.",
-      true,
-    ],
+    ["CC1.1", "Control Environment", `${data.metrics.policiesActive} active policies enforce ethical AI usage boundaries across all agents.`, true],
+    ["CC6.1", "Logical Access Controls", "All agent actions evaluated against policy rules before execution. Unauthorized actions automatically blocked.", true],
+    ["CC6.3", "System Boundaries", "Multi-tenant architecture enforces strict isolation via Row Level Security on all data tables.", true],
+    ["CC7.2", "System Monitoring", `${data.metrics.totalActions.toLocaleString()} agent actions logged with immutable audit trails including timestamps and policy decisions.`, true],
+    ["CC7.4", "Security Incidents", `${data.governance.blockedCount} threats automatically neutralized. Real-time alerting and incident classification in place.`, true],
+    ["CC9.2", "Risk Mitigation", "Continuous risk scoring per agent. Trust scores computed from violation history. Emergency kill-switch available.", true],
+    ["A1.1", "Availability", "Audit trail preserved with full event history. System availability monitored via health endpoint.", true],
+    ["PI1.1", "Processing Integrity", "Every AI action produces a structured audit record with input/output summary and policy decision.", true],
+    ["C1.1", "Confidentiality", "Data masking policies enforced at the AI output layer. PII exposure prevented by automated policy evaluation.", true],
+    ["P1.1", "Privacy", "Customer data access by AI agents is logged, evaluated, and subject to data masking and domain block policies.", true],
   ];
 
-  rows.forEach(([tsc, control, evidence, pass]) => {
-    r.criteriaRow(tsc, control, evidence, pass);
-  });
+  rows.forEach(([tsc, control, evidence, pass]) => r.criteriaRow(tsc, control, evidence, pass));
 
-  r.vGap(12);
+  r.vGap(10);
   r.paragraph(
-    `Evidence collected for period: ${fmtDate(data.periodStart)} — ${fmtDate(data.periodEnd)}. ` +
-      `Total events in scope: ${data.metrics.totalActions.toLocaleString()}.`,
-    8,
-    C.muted
+    `Evidence period: ${fmtDate(data.periodStart)} — ${fmtDate(data.periodEnd)}.  ` +
+    `Total events in scope: ${data.metrics.totalActions.toLocaleString()}.`,
+    8, C.muted
   );
 }
 
+// Page 8 — EU AI Act
 function buildEuAiAct(r: R, data: ReportData) {
   r.vGap(4);
   r.paragraph(
-    "The EU AI Act (Regulation 2024/1689) imposes obligations on providers and deployers of " +
-      "AI systems used in the European Union. The following matrix maps AgentWitness platform " +
-      "capabilities to the applicable articles for General Purpose AI Systems (GPAIS) and " +
-      "High-Risk AI systems as defined in Annex III.",
-    9
+    "The EU AI Act (Regulation 2024/1689) imposes obligations on providers and deployers of AI systems " +
+    "in the European Union. The following matrix maps AgentWitness platform capabilities to applicable " +
+    "articles for General Purpose AI Systems (GPAIS) and High-Risk AI systems per Annex III.",
+    9, C.body
   );
   r.vGap(6);
 
-  r.sectionDivider("Risk Classification", C.purple);
+  r.sectionDivider("Risk Classification");
   r.kvRow("AI System Category", "General Purpose AI (GPAI) — Agentic Systems");
   r.kvRow("Risk Level", "High Risk (automated decision-making with real-world effects)");
-  r.kvRow("Applicable Articles", "9, 10, 12, 13, 14, 17, 26");
+  r.kvRow("Applicable Articles", "9, 10, 12, 13, 14, 17, 26, 50");
   r.kvRow("Compliance Approach", "Platform-level controls with per-tenant policy enforcement");
-  r.vGap(10);
+  r.vGap(8);
 
-  r.sectionDivider("Article Compliance Matrix", C.purple);
-
-  const colW = [78, 118, 220, 71];
   const headers = ["Article", "Requirement", "Implementation Evidence", "Status"];
-  const { doc } = r;
-  doc.rect(ML, r.y, CW, 22).fill(C.cardDark);
+  const colW = [72, 118, 226, 71];
+  r.doc.rect(ML, r.y, CW, 22).fill(C.cardDark);
   let x = ML;
   headers.forEach((h, i) => {
-    doc.font("Helvetica-Bold").fontSize(8).fillColor(C.white).text(h, x + 4, r.y + 7, {
-      width: colW[i] - 8,
-      lineBreak: false,
-    });
+    r.doc.font("Helvetica-Bold").fontSize(8).fillColor(C.white).text(h, x + 4, r.y + 7, { width: colW[i] - 8, lineBreak: false });
     x += colW[i];
   });
   r.y += 22;
 
   const articles: [string, string, string, boolean][] = [
-    [
-      "Art. 9",
-      "Risk Management System",
-      `Continuous risk scoring: ${data.metrics.totalActions.toLocaleString()} actions assessed. Governance score ${data.governance.score}/100. Per-agent trust scores computed.`,
-      true,
-    ],
-    [
-      "Art. 10",
-      "Data Governance",
-      "All AI inputs and outputs logged with metadata. Data masking policies prevent PII exposure. Audit trail provides data lineage.",
-      true,
-    ],
-    [
-      "Art. 12",
-      "Record Keeping",
-      `${data.metrics.totalActions.toLocaleString()} immutable audit log entries with timestamps, agent identity, action type, and policy decision.`,
-      true,
-    ],
-    [
-      "Art. 13",
-      "Transparency & Explainability",
-      "Each policy decision accompanied by rule type, evaluation result, and input/output summaries accessible in audit log.",
-      true,
-    ],
-    [
-      "Art. 14",
-      "Human Oversight",
-      "Emergency kill-switch enables immediate suspension of all agent execution. Flagged actions queued for human review.",
-      true,
-    ],
-    [
-      "Art. 17",
-      "Quality Management",
-      `${data.metrics.policiesActive} active governance policies covering cost limits, data masking, and domain restrictions.`,
-      true,
-    ],
-    [
-      "Art. 26",
-      "Deployer Obligations",
-      "Tenant-scoped controls enforce per-organisation governance rules. Activity logs available for competent authority review.",
-      true,
-    ],
-    [
-      "Art. 50",
-      "Transparency to Users",
-      "Agents identified as AI systems. Policy enforcement visible in real-time audit trail and anomaly detection.",
-      true,
-    ],
+    ["Art. 9", "Risk Management System", `Continuous risk scoring: ${data.metrics.totalActions.toLocaleString()} actions assessed. Governance score ${data.governance.score}/100.`, true],
+    ["Art. 10", "Data Governance", "All AI inputs and outputs logged. Data masking policies prevent PII exposure. Audit trail provides data lineage.", true],
+    ["Art. 12", "Record Keeping", `${data.metrics.totalActions.toLocaleString()} immutable audit log entries with timestamps, agent identity, action type, and policy decision.`, true],
+    ["Art. 13", "Transparency", "Each policy decision accompanied by rule type, evaluation result, and input/output summaries in audit log.", true],
+    ["Art. 14", "Human Oversight", "Emergency kill-switch enables immediate suspension of all agent execution. Flagged actions queued for review.", true],
+    ["Art. 17", "Quality Management", `${data.metrics.policiesActive} active governance policies covering cost limits, data masking, and domain restrictions.`, true],
+    ["Art. 26", "Deployer Obligations", "Tenant-scoped controls enforce per-organisation governance rules. Activity logs available for competent authority review.", true],
+    ["Art. 50", "Transparency to Users", "Agents identified as AI systems. Policy enforcement visible in real-time audit trail and anomaly detection.", true],
   ];
 
-  articles.forEach(([article, req, evidence, pass]) => {
-    r.criteriaRow(article, req, evidence, pass);
-  });
+  articles.forEach(([article, req, evidence, pass]) => r.criteriaRow(article, req, evidence, pass));
 
-  r.vGap(10);
+  r.vGap(8);
   r.paragraph(
-    "Note: This compliance mapping is produced by the AgentWitness platform based on configured " +
-      "policies and audit data. Final legal determination requires qualified legal counsel in the applicable jurisdiction.",
-    7.5,
-    C.muted
+    "Note: This compliance mapping is produced by the AgentWitness platform based on configured policies and audit data. " +
+    "Final legal determination requires qualified legal counsel in the applicable jurisdiction.",
+    7.5, C.muted
   );
 }
 
+// Page 9 — ISO 27001:2022
 function buildIso27001(r: R, data: ReportData) {
   r.vGap(4);
   r.paragraph(
-    "ISO/IEC 27001:2022 defines requirements for establishing, implementing, maintaining, and " +
-      "continually improving an Information Security Management System (ISMS). The following " +
-      "controls map AgentWitness platform capabilities to the ISO 27001 Annex A control set " +
-      "as applied to AI agent operations.",
-    9
+    "ISO/IEC 27001:2022 defines requirements for establishing, implementing, maintaining, and continually improving " +
+    "an Information Security Management System (ISMS). The following controls map AgentWitness platform capabilities " +
+    "to the ISO 27001 Annex A control set as applied to AI agent operations.",
+    9, C.body
   );
   r.vGap(6);
 
-  r.sectionDivider("Annex A Control Mapping", C.indigo);
-
-  const colW = [78, 130, 208, 71];
   const headers = ["Control", "Domain", "Implementation Evidence", "Status"];
-  const { doc } = r;
-  doc.rect(ML, r.y, CW, 22).fill(C.cardDark);
+  const colW = [72, 128, 216, 71];
+  r.doc.rect(ML, r.y, CW, 22).fill(C.cardDark);
   let x = ML;
   headers.forEach((h, i) => {
-    doc.font("Helvetica-Bold").fontSize(8).fillColor(C.white).text(h, x + 4, r.y + 7, {
-      width: colW[i] - 8,
-      lineBreak: false,
-    });
+    r.doc.font("Helvetica-Bold").fontSize(8).fillColor(C.white).text(h, x + 4, r.y + 7, { width: colW[i] - 8, lineBreak: false });
     x += colW[i];
   });
   r.y += 22;
 
   const controls: [string, string, string, boolean][] = [
-    [
-      "A.5.1",
-      "Policies for Information Security",
-      `${data.metrics.policiesActive} active governance policies enforced per tenant via the AgentWitness policy engine.`,
-      true,
-    ],
-    [
-      "A.5.15",
-      "Access Control",
-      "Row Level Security isolates all tenant data. Agent actions authenticated and scoped to authorized tenant context.",
-      true,
-    ],
-    [
-      "A.5.23",
-      "Information Security of Cloud Services",
-      "Aurora PostgreSQL with encryption at rest and in transit. DynamoDB hot-path mirror with TTL-based expiry.",
-      true,
-    ],
-    [
-      "A.5.28",
-      "Collection of Evidence",
-      `${data.metrics.totalActions.toLocaleString()} immutable audit records retained with full input/output metadata and policy decisions.`,
-      true,
-    ],
-    [
-      "A.5.36",
-      "Compliance with Policies and Standards",
-      "Policy engine evaluates every agent action before execution. Non-compliant actions are blocked automatically.",
-      true,
-    ],
-    [
-      "A.6.8",
-      "Information Security Event Reporting",
-      `${data.governance.blockedCount} security events auto-classified and recorded. Real-time incident feed available.`,
-      data.governance.blockedCount >= 0,
-    ],
-    [
-      "A.8.15",
-      "Logging",
-      "All agent actions produce structured audit records: timestamp, identity, action type, inputs, outputs, policy verdict.",
-      true,
-    ],
-    [
-      "A.8.16",
-      "Monitoring Activities",
-      "Live stream monitoring with governance score computed continuously. Anomaly detection via semantic similarity search.",
-      true,
-    ],
-    [
-      "A.8.34",
-      "Protection of Information Systems During Audit",
-      "Emergency execution controls allow immediate suspension of all agent activity without database modification.",
-      true,
-    ],
+    ["A.5.1", "Policies for Information Security", `${data.metrics.policiesActive} active governance policies enforced per tenant via the AgentWitness policy engine.`, true],
+    ["A.5.15", "Access Control", "Row Level Security isolates all tenant data. Agent actions authenticated and scoped to authorized tenant context.", true],
+    ["A.5.23", "Cloud Services Security", "Aurora PostgreSQL with encryption at rest and in transit. Serverless architecture with no persistent compute exposure.", true],
+    ["A.5.28", "Collection of Evidence", `${data.metrics.totalActions.toLocaleString()} immutable audit records retained with full input/output metadata and policy decisions.`, true],
+    ["A.5.36", "Compliance with Policies", "Policy engine evaluates every agent action before execution. Non-compliant actions blocked automatically.", true],
+    ["A.6.8", "Security Event Reporting", `${data.governance.blockedCount} security events auto-classified and recorded. Real-time incident feed available.`, true],
+    ["A.8.15", "Logging", "All agent actions produce structured audit records: timestamp, identity, action type, inputs, outputs, policy verdict.", true],
+    ["A.8.16", "Monitoring Activities", "Live stream monitoring with governance score computed continuously. Anomaly detection via semantic similarity search.", true],
+    ["A.8.34", "Protection During Audit", "Emergency execution controls allow immediate suspension of all agent activity without database modification.", true],
   ];
 
-  controls.forEach(([ctrl, domain, evidence, pass]) => {
-    r.criteriaRow(ctrl, domain, evidence, pass);
-  });
+  controls.forEach(([ctrl, domain, evidence, pass]) => r.criteriaRow(ctrl, domain, evidence, pass));
 
   r.vGap(8);
-  r.sectionDivider("ISMS Scope Statement", C.indigo);
+  r.sectionDivider("ISMS Scope Statement");
   r.paragraph(
-    "Scope: AI agent governance platform covering the monitoring, policy enforcement, " +
-      "and audit trail management of agentic AI systems. " +
-      `In-scope assets: ${data.metrics.agentsMonitored} monitored AI agents, ` +
-      `${data.metrics.policiesActive} active governance policies, ` +
-      `${data.metrics.totalActions.toLocaleString()} audited agent actions. ` +
-      "All controls are applied tenant-wide with no exceptions.",
-    9,
-    C.body
-  );
-
-  r.vGap(6);
-  r.paragraph(
-    "Note: This mapping is indicative. Formal ISO 27001 certification requires a third-party " +
-      "audit conducted by an accredited certification body. The controls above demonstrate " +
-      "AgentWitness platform readiness to support an ISMS audit.",
-    7.5,
-    C.muted
+    `Scope: AI agent governance platform covering the monitoring, policy enforcement, and audit trail management ` +
+    `of agentic AI systems. In-scope assets: ${data.metrics.agentsMonitored} monitored AI agents, ` +
+    `${data.metrics.policiesActive} active governance policies, ${data.metrics.totalActions.toLocaleString()} audited agent actions. ` +
+    "All controls are applied tenant-wide with no exceptions.",
+    9, C.body
   );
 }
 
-function buildAuditTrailSummary(r: R, data: ReportData) {
-  const { metrics, governance } = data;
-  const allowed = metrics.totalActions - governance.blockedCount - governance.flaggedCount;
-  const compPct =
-    metrics.totalActions > 0
-      ? Math.round((allowed / metrics.totalActions) * 100)
-      : 100;
-  const blockedPct =
-    metrics.totalActions > 0
-      ? Math.round((governance.blockedCount / metrics.totalActions) * 100)
-      : 0;
-  const flaggedPct =
-    metrics.totalActions > 0
-      ? Math.round((governance.flaggedCount / metrics.totalActions) * 100)
-      : 0;
-
+// Page 10 — Executive Recommendations
+function buildExecutiveRecommendations(r: R, data: ReportData) {
   r.vGap(4);
-  r.metricBox([
-    { label: "Total Events Logged", value: metrics.totalActions.toLocaleString(), color: C.cyan },
-    { label: "Agents Monitored", value: String(metrics.agentsMonitored), color: C.indigo },
-    { label: "Report Period (days)", value: String(Math.round((data.periodEnd.getTime() - data.periodStart.getTime()) / 86400000)), color: C.purple },
-  ]);
 
-  r.sectionDivider("Action Outcome Distribution", C.amber);
+  const score = data.governance.score;
+  const scoreColor = govColor(score);
 
-  r.progressBar("Allowed (policy compliant)", allowed, metrics.totalActions, C.green, `${allowed.toLocaleString()} (${compPct}%)`);
-  r.progressBar("Flagged (requires review)", governance.flaggedCount, metrics.totalActions, C.amber, `${governance.flaggedCount} (${flaggedPct}%)`);
-  r.progressBar("Blocked (policy violation)", governance.blockedCount, metrics.totalActions, C.red, `${governance.blockedCount} (${blockedPct}%)`);
-
-  r.vGap(6);
-  r.sectionDivider("Policy Trigger Frequency", C.amber);
-
-  r.table(
-    ["Policy", "Triggers (Non-Allowed)"],
-    [340, 147],
-    data.policyBreakdown.map((p) => ({
-      cells: [p.policyName, String(p.hitCount)],
-      textColors: [C.body, p.hitCount > 0 ? C.red : C.muted],
-    })),
-    C.amber,
-    "Audit Trail Summary"
+  // Summary statement
+  r.paragraph(
+    `Based on the governance data for ${data.tenantName} (score: ${score}/100, risk level: ${data.governance.level}), ` +
+    `the following recommendations are prioritized to maintain and improve AI governance posture.`,
+    9.5, C.body
   );
-
   r.vGap(8);
-  r.paragraph(
-    "The audit trail is maintained with full fidelity for all AI agent actions. " +
-      "Each event record includes: agent identifier, action type, input/output summaries, " +
-      "applicable policy, policy decision, cost attribution, and UTC timestamp. " +
-      "Records are stored in Aurora PostgreSQL with write-once semantics.",
-    9,
-    C.body
-  );
-}
 
-function buildPolicyViolations(r: R, data: ReportData) {
-  r.vGap(4);
+  // Build recommendations
+  const recs: { level: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW"; title: string; detail: string }[] = [];
 
-  if (data.governance.blockedCount === 0) {
-    r.paragraph(
-      "No policy violations were recorded during this reporting period. All AI agent actions " +
-        "were within configured governance boundaries.",
-      9.5,
-      C.green
-    );
-    return;
+  if (score < 50) {
+    recs.push({
+      level: "CRITICAL",
+      title: "Immediate governance review required",
+      detail: `Governance score of ${score}/100 falls below the critical threshold. Suspend high-risk agents ` +
+        `and schedule an immediate policy audit to identify root causes of the elevated violation rate.`,
+    });
   }
-
-  r.metricBox([
-    { label: "Total Violations", value: String(data.governance.blockedCount + data.governance.flaggedCount), color: C.red },
-    { label: "Blocked (Hard Stop)", value: String(data.governance.blockedCount), color: C.red },
-    { label: "Flagged (Soft Stop)", value: String(data.governance.flaggedCount), color: C.amber },
-  ]);
-
-  r.sectionDivider("Recent Blocked Incidents", C.red);
-
-  const incidentRows = data.incidents.slice(0, 12).map((inc) => ({
-    cells: [
-      fmtShortDt(inc.timestamp),
-      truncStr(inc.agentName, 22),
-      truncStr(inc.actionType, 20),
-      truncStr(inc.policyName, 22),
-      truncStr(inc.inputSummary, 32),
-    ],
-    textColors: [C.muted, C.body, C.body, C.red, C.muted] as (string | null)[],
-  }));
-
-  r.table(
-    ["Timestamp", "Agent", "Action Type", "Policy", "Input Summary"],
-    [78, 100, 90, 100, 119],
-    incidentRows,
-    C.red,
-    "Policy Violations"
-  );
-
-  if (data.incidents.length > 12) {
-    r.paragraph(
-      `Showing 12 of ${data.incidents.length} incidents. Full incident feed available in the AgentWitness dashboard.`,
-      7.5,
-      C.muted
-    );
-  }
-}
-
-function buildRiskMetrics(r: R, data: ReportData) {
-  r.vGap(4);
-
-  r.sectionDivider("Agent Trust Score Summary", C.green);
-
-  if (data.agentTrustScores.length === 0) {
-    r.paragraph("No agent trust data available for this period.", 9, C.muted);
-  } else {
-    r.table(
-      ["Agent", "Framework", "Trust Score", "Compliance", "Viol. Rate", "Trend"],
-      [140, 80, 72, 68, 65, 62],
-      data.agentTrustScores.map((a) => {
-        const tc = trustColor(a.trustScore);
-        const trendLabel =
-          a.riskTrend === "improving" ? "↑ Improving" : a.riskTrend === "degrading" ? "↓ Degrading" : "→ Stable";
-        const trendColor =
-          a.riskTrend === "improving" ? C.green : a.riskTrend === "degrading" ? C.red : C.muted;
-        return {
-          cells: [
-            truncStr(a.agentName, 22),
-            a.agentFramework ?? "—",
-            `${a.trustScore}/100`,
-            `${a.complianceScore}%`,
-            `${(a.violationRate * 100).toFixed(1)}%`,
-            trendLabel,
-          ],
-          textColors: [C.body, C.muted, tc, C.cyan, a.violationRate > 0.1 ? C.red : C.muted, trendColor] as (string | null)[],
-        };
-      }),
-      C.green,
-      "Risk Metrics"
-    );
-  }
-
-  r.vGap(10);
-  r.sectionDivider("Governance Score Breakdown", C.green);
-
-  const gc = govColor(data.governance.score);
-  r.kvRow("Overall Governance Score", `${data.governance.score} / 100`, gc);
-  r.kvRow("Formula", "100 − (blocked × 5) − (flagged × 2) − (high-cost × 1)");
-  r.kvRow("Blocked Penalty", `${data.governance.blockedCount} × 5 = ${data.governance.blockedCount * 5} pts`);
-  r.kvRow("Flagged Penalty", `${data.governance.flaggedCount} × 2 = ${data.governance.flaggedCount * 2} pts`);
-  r.kvRow("High-Cost Penalty", `${data.governance.highCostCount} × 1 = ${data.governance.highCostCount} pts`);
-
-  r.vGap(10);
-  r.sectionDivider("Risk Remediation Recommendations", C.green);
-
-  const recs: [string, string][] = [];
   if (data.governance.blockedCount > 5) {
-    recs.push(["HIGH", "Review and tighten data masking and domain block policies — blocking rate is elevated."]);
+    recs.push({
+      level: "HIGH",
+      title: "Review and tighten data masking and domain block policies",
+      detail: `${data.governance.blockedCount} hard-blocked actions indicate agents are regularly attempting ` +
+        `actions outside policy boundaries. Review agent prompts and training to reduce policy friction.`,
+    });
   }
   if (data.governance.flaggedCount > 10) {
-    recs.push(["MEDIUM", "Automate triage of flagged actions to reduce manual review burden."]);
+    recs.push({
+      level: "MEDIUM",
+      title: "Automate triage of flagged actions",
+      detail: `${data.governance.flaggedCount} flagged actions await human review. Implement automated ` +
+        `triage rules to route clear-cut cases and reduce reviewer burden.`,
+    });
   }
-  if (data.metrics.agentsMonitored > 0 && data.agentTrustScores.some((a) => a.trustScore < 50)) {
-    recs.push(["HIGH", "One or more agents have critical trust scores (< 50). Consider suspending until reviewed."]);
+  if (data.agentTrustScores.some((a) => a.trustScore < 50)) {
+    recs.push({
+      level: "HIGH",
+      title: "Suspend or retrain critical-trust agents",
+      detail: "One or more agents have trust scores below 50 (critical threshold). Consider suspending " +
+        "these agents pending a full behavioral audit and prompt review.",
+    });
+  }
+  if (data.agentTrustScores.some((a) => a.riskTrend === "degrading")) {
+    recs.push({
+      level: "MEDIUM",
+      title: "Investigate degrading trust trend agents",
+      detail: "One or more agents show a downward trust trend. Proactive intervention now avoids " +
+        "critical violations in the next reporting cycle.",
+    });
   }
   if (data.governance.highCostCount > 0) {
-    recs.push(["MEDIUM", "High-cost AI actions detected. Review cost_limit policy thresholds."]);
+    recs.push({
+      level: "MEDIUM",
+      title: "Review cost_limit policy thresholds",
+      detail: `${data.governance.highCostCount} high-cost anomalies detected. Tighten cost_limit ` +
+        `policy rules and add alerts for spend exceeding defined thresholds.`,
+    });
   }
   if (recs.length === 0) {
-    recs.push(["LOW", "No critical remediation required. Continue monitoring current governance posture."]);
+    recs.push({
+      level: "LOW",
+      title: "Maintain current governance posture",
+      detail: "No critical remediation required. Continue monitoring agents and review policies quarterly " +
+        "to ensure alignment with evolving regulatory requirements.",
+    });
   }
 
-  recs.forEach(([level, text]) => {
-    const lvlColor = level === "HIGH" ? C.red : level === "MEDIUM" ? C.amber : C.green;
-    r.ensureSpace(30, C.green, "Risk Metrics");
-    r.badge(level, lvlColor, ML, r.y + 3, 44, 14);
-    r.doc.font("Helvetica").fontSize(8.5).fillColor(C.body).text(text, ML + 52, r.y + 4, {
-      width: CW - 56,
-    });
-    r.y = Math.max(r.y + 20, r.doc.y + 4);
+  recs.push({
+    level: "LOW",
+    title: "Schedule quarterly compliance review",
+    detail: "Re-run this compliance package every 30 days and conduct a full compliance review with " +
+      "legal counsel quarterly to maintain SOC 2, EU AI Act, and ISO 27001 readiness.",
   });
+
+  r.sectionDivider("Prioritized Action Items");
+
+  recs.forEach((rec) => {
+    const color = rec.level === "CRITICAL" ? C.red : rec.level === "HIGH" ? C.red : rec.level === "MEDIUM" ? C.amber : C.green;
+    const needed = 50;
+    r.ensureSpace(needed);
+    r.badge(rec.level, color, ML, r.y + 2, 60, 14);
+    r.doc
+      .font("Helvetica-Bold").fontSize(9).fillColor(C.cardDark)
+      .text(rec.title, ML + 68, r.y + 1, { width: CW - 72 });
+    r.doc
+      .font("Helvetica").fontSize(8.5).fillColor(C.body)
+      .text(rec.detail, ML + 68, r.y + 13, { width: CW - 72 });
+    r.y = r.doc.y + 10;
+    r.doc.rect(ML, r.y - 4, CW, 0.4).fill(C.border);
+  });
+
+  r.vGap(12);
+  r.sectionDivider("Governance Roadmap");
+
+  const roadmap = [
+    { horizon: "30 Days", action: "Re-run compliance package. Review all flagged incidents.", color: C.red },
+    { horizon: "90 Days", action: "Tighten top-offending policies. Retrain high-violation agents.", color: C.amber },
+    { horizon: "6 Months", action: "Conduct third-party audit for SOC 2 Type II certification readiness.", color: C.cyan },
+    { horizon: "12 Months", action: "Formal ISO 27001 certification engagement with accredited body.", color: C.indigo },
+  ];
+
+  roadmap.forEach(({ horizon, action, color }) => {
+    r.ensureSpace(22);
+    r.doc.rect(ML, r.y, 68, 18).fill(color + "22");
+    r.doc.rect(ML, r.y, 3, 18).fill(color);
+    r.doc.font("Helvetica-Bold").fontSize(8).fillColor(color).text(horizon, ML + 7, r.y + 5, { width: 58, lineBreak: false });
+    r.doc.font("Helvetica").fontSize(8.5).fillColor(C.body).text(action, ML + 76, r.y + 4, { width: CW - 80 });
+    r.y += 22;
+  });
+
+  r.vGap(12);
+  r.paragraph(
+    `Report prepared by AgentWitness Enterprise Governance Platform  ·  ${fmtDate(data.generatedAt)}  ·  CONFIDENTIAL`,
+    7.5, C.muted
+  );
 }
 
-function addPageNumbers(doc: PDFKit.PDFDocument) {
+// ── Footer pass (runs after all pages buffered) ────────────────────────────────
+
+function addFooters(doc: PDFKit.PDFDocument) {
   const range = doc.bufferedPageRange();
-  for (let i = 0; i < range.count; i++) {
+  const total = range.count;
+  for (let i = 0; i < total; i++) {
     doc.switchToPage(range.start + i);
+    if (i === 0) {
+      // Cover page has its own footer strip — skip
+      continue;
+    }
+    doc.rect(ML, PH - FOOTER_H + 6, CW, 0.5).fill(C.border);
     doc
       .font("Helvetica")
       .fontSize(7.5)
       .fillColor(C.muted)
       .text(
-        `Page ${i + 1} of ${range.count}  ·  AgentWitness Compliance Report  ·  CONFIDENTIAL`,
+        `AgentWitness Enterprise Governance Report  ·  Confidential  ·  Page ${i + 1} of ${total}`,
         ML,
-        PH - 28,
+        PH - FOOTER_H + 12,
         { width: CW, align: "center" }
       );
-    // bottom line
-    doc.rect(ML, PH - 36, CW, 0.5).fill(C.border);
   }
 }
 
@@ -1101,8 +1040,8 @@ export async function generateCompliancePdf(data: ReportData): Promise<Buffer> {
     info: {
       Title: "AI Governance Compliance Report",
       Author: "AgentWitness Platform",
-      Subject: "SOC 2 / EU AI Act Compliance Evidence",
-      Keywords: "compliance, SOC2, EU AI Act, governance, audit",
+      Subject: "SOC 2 / EU AI Act / ISO 27001 Compliance Evidence",
+      Keywords: "compliance, SOC2, EU AI Act, ISO 27001, governance, audit",
     },
   });
 
@@ -1111,56 +1050,41 @@ export async function generateCompliancePdf(data: ReportData): Promise<Buffer> {
 
   const r = new R(doc);
 
-  // ── Page 1: Cover ──────────────────────────────────────────────────────────
+  // Page 1: Cover (first page, no addPage needed)
   buildCoverPage(r, data);
 
-  // ── Page 2: Executive Summary ──────────────────────────────────────────────
-  doc.addPage();
-  r.y = MT;
-  r.pageHeader(C.cyan, "Executive Summary");
+  // Pages 2–10: each section adds its own page
+  r.startSection(C.cyan, "Executive Summary");
   buildExecutiveSummary(r, data);
 
-  // ── Page 3: SOC 2 Evidence ─────────────────────────────────────────────────
-  doc.addPage();
-  r.y = MT;
-  r.pageHeader(C.indigo, "SOC 2 Type II Evidence");
-  buildSoc2Evidence(r, data);
+  r.startSection(C.amber, "Risk Overview");
+  buildRiskOverview(r, data);
 
-  // ── Page 4: EU AI Act ──────────────────────────────────────────────────────
-  doc.addPage();
-  r.y = MT;
-  r.pageHeader(C.purple, "EU AI Act Compliance Evidence");
+  r.startSection(C.green, "Agent Trust Intelligence");
+  buildAgentTrustIntelligence(r, data);
+
+  r.startSection(C.red, "Incident Timeline");
+  buildIncidentTimeline(r, data);
+
+  r.startSection(C.purple, "Forensic Analysis");
+  buildForensicAnalysis(r, data);
+
+  r.startSection(C.indigo, "SOC 2 Type II — Trust Service Criteria Evidence");
+  buildSoc2(r, data);
+
+  r.startSection(C.purple, "EU AI Act — Regulation 2024/1689 Compliance Matrix");
   buildEuAiAct(r, data);
 
-  // ── Page 5: ISO 27001 ──────────────────────────────────────────────────────
-  doc.addPage();
-  r.y = MT;
-  r.pageHeader(C.indigo, "ISO 27001:2022 Control Evidence");
+  r.startSection(C.indigo, "ISO 27001:2022 — Annex A Control Mapping");
   buildIso27001(r, data);
 
-  // ── Page 6: Audit Trail Summary ────────────────────────────────────────────
-  doc.addPage();
-  r.y = MT;
-  r.pageHeader(C.amber, "Audit Trail Summary");
-  buildAuditTrailSummary(r, data);
+  r.startSection(C.cyan, "Executive Recommendations & Governance Roadmap");
+  buildExecutiveRecommendations(r, data);
 
-  // ── Page 7: Policy Violations ──────────────────────────────────────────────
-  doc.addPage();
-  r.y = MT;
-  r.pageHeader(C.red, "Policy Violations");
-  buildPolicyViolations(r, data);
-
-  // ── Page 8: Risk Metrics & Agent Trust Scores ─────────────────────────────
-  doc.addPage();
-  r.y = MT;
-  r.pageHeader(C.green, "Agent Trust Metrics");
-  buildRiskMetrics(r, data);
-
-  // Add page numbers to all pages
-  addPageNumbers(doc);
+  // Post-process: add footers to all pages
+  addFooters(doc);
 
   doc.end();
-
   await new Promise<void>((resolve) => doc.on("end", resolve));
   return Buffer.concat(chunks);
 }

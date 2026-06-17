@@ -30,6 +30,7 @@ import type {
 
 export interface AgentActionWithSimilarity extends AgentAction {
   similarity: number;
+  agentName: string;
 }
 
 // --- Row mappers ---------------------------------------------------------------
@@ -78,6 +79,7 @@ function toAgentActionWithSimilarity(row: DbRecord): AgentActionWithSimilarity {
   return {
     ...toAgentAction(row),
     similarity: getNumber(row, "similarity"),
+    agentName: getString(row, "agent_name"),
   };
 }
 
@@ -337,12 +339,15 @@ export async function searchSimilarActions(
   await setTenantContext(tenantId);
 
   const rows = await executeSql(
-    `SELECT id, tenant_id, agent_id, action_type, input_summary, input_metadata,
-            output_summary, output_metadata, policy_id, policy_result, cost_usd, created_at,
-            1 - (embedding <=> :embedding::vector) AS similarity
-     FROM agent_actions
-     WHERE tenant_id = :tenantId AND embedding IS NOT NULL
-     ORDER BY embedding <=> :embedding::vector
+    `SELECT aa.id, aa.tenant_id, aa.agent_id, ag.name AS agent_name,
+            aa.action_type, aa.input_summary, aa.input_metadata,
+            aa.output_summary, aa.output_metadata, aa.policy_id, aa.policy_result,
+            aa.cost_usd, aa.created_at,
+            1 - (aa.embedding <=> :embedding::vector) AS similarity
+     FROM agent_actions aa
+     JOIN agents ag ON ag.id = aa.agent_id
+     WHERE aa.tenant_id = :tenantId AND aa.embedding IS NOT NULL
+     ORDER BY aa.embedding <=> :embedding::vector
      LIMIT :limit`,
     [uuidParam("tenantId", tenantId), vectorParam("embedding", embedding), intParam("limit", limit)]
   );

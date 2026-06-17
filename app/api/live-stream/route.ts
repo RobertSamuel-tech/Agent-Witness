@@ -52,16 +52,13 @@ function computeKpis(events: AgentEvent[]): {
     (e) => e.timestamp >= todayStart && e.payload["policyResult"] === "blocked"
   ).length;
 
-  // Governance score — matches Aurora formula:
-  // 100 − (blocked × 5) − (flagged × 2), clamped to [0, 100]
-  const totalBlocked = events.filter(
-    (e) => e.payload["policyResult"] === "blocked"
-  ).length;
-  const totalFlagged = events.filter(
-    (e) => e.payload["policyResult"] === "flagged"
-  ).length;
-  const rawScore = 100 - totalBlocked * 5 - totalFlagged * 2;
-  const governanceScore = Math.max(0, Math.min(100, rawScore));
+  // Governance score — percentage-based, matches Aurora formula
+  const totalBlocked = events.filter((e) => e.payload["policyResult"] === "blocked").length;
+  const totalFlagged = events.filter((e) => e.payload["policyResult"] === "flagged").length;
+  const total = events.length;
+  const blockedPct = total > 0 ? totalBlocked / total : 0;
+  const flaggedPct  = total > 0 ? totalFlagged  / total : 0;
+  const governanceScore = Math.max(0, Math.min(100, Math.round(100 - blockedPct * 100 - flaggedPct * 40)));
 
   return { agentsOnline, actionsPerMin, blockedToday, governanceScore };
 }

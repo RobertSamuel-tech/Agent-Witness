@@ -85,6 +85,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (!agent) {
       return NextResponse.json({ error: "Agent not found for tenant" }, { status: 404 });
     }
+    const agentName = agent.name;
 
     const activePolicies = await getPoliciesByTenant(tenantId, true);
 
@@ -119,11 +120,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         eventType: body.actionType,
         tenantId,
         payload: {
-          actionId:    action.id,
+          agentName:    agentName,
+          actionId:     action.id,
           policyResult: "blocked",
-          policyId:    evaluation.matchedPolicyId ?? null,
+          policyId:     evaluation.matchedPolicyId ?? null,
           inputSummary: body.inputSummary,
-          costUsd:     body.costUsd,
+          costUsd:      body.costUsd,
         },
       }).catch((err: unknown) => {
         console.error("[dynamodb] putAgentEvent failed (blocked)", err);
@@ -162,11 +164,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       eventType: body.actionType,
       tenantId,
       payload: {
-        actionId:    action.id,
+        agentName:    agentName,
+        actionId:     action.id,
         policyResult: action.policy_result,
-        policyId:    evaluation.matchedPolicyId ?? null,
+        policyId:     evaluation.matchedPolicyId ?? null,
         inputSummary: body.inputSummary,
-        costUsd:     body.costUsd,
+        costUsd:      body.costUsd,
       },
     }).catch((err: unknown) => {
       console.error("[dynamodb] putAgentEvent failed", err);

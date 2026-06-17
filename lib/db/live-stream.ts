@@ -85,7 +85,7 @@ export async function getLiveKpis(tenantId: string): Promise<LiveKpis> {
        (SELECT COUNT(DISTINCT agent_id)
         FROM agent_actions
         WHERE tenant_id = :tenantId
-          AND created_at >= now() - interval '5 minutes') AS agents_online,
+          AND created_at >= now() - interval '24 hours') AS agents_online,
        (SELECT COUNT(*)
         FROM agent_actions
         WHERE tenant_id = :tenantId
@@ -95,11 +95,9 @@ export async function getLiveKpis(tenantId: string): Promise<LiveKpis> {
         WHERE tenant_id = :tenantId
           AND policy_result = 'blocked'
           AND created_at >= CURRENT_DATE) AS blocked_today,
-       GREATEST(0, LEAST(100,
-         100
-         - (SELECT COUNT(*) FROM agent_actions WHERE tenant_id = :tenantId AND policy_result = 'blocked') * 5
-         - (SELECT COUNT(*) FROM agent_actions WHERE tenant_id = :tenantId AND policy_result = 'flagged') * 2
-       )) AS governance_score`,
+       (SELECT COUNT(*) FROM agent_actions WHERE tenant_id = :tenantId)                              AS total_count,
+       (SELECT COUNT(*) FROM agent_actions WHERE tenant_id = :tenantId AND policy_result = 'blocked') AS total_blocked,
+       (SELECT COUNT(*) FROM agent_actions WHERE tenant_id = :tenantId AND policy_result = 'flagged') AS total_flagged`,
     [uuidParam("tenantId", tenantId)]
   );
 
@@ -112,10 +110,17 @@ export async function getLiveKpis(tenantId: string): Promise<LiveKpis> {
     return Number.isNaN(n) ? 0 : n;
   }
 
+  const totalCount  = safeNum("total_count");
+  const totalBlocked = safeNum("total_blocked");
+  const totalFlagged = safeNum("total_flagged");
+  const blockedPct = totalCount > 0 ? totalBlocked / totalCount : 0;
+  const flaggedPct  = totalCount > 0 ? totalFlagged  / totalCount : 0;
+  const governanceScore = Math.max(0, Math.min(100, Math.round(100 - blockedPct * 100 - flaggedPct * 40)));
+
   return {
     agentsOnline: safeNum("agents_online"),
     actionsLastMinute: safeNum("actions_last_minute"),
     blockedToday: safeNum("blocked_today"),
-    governanceScore: safeNum("governance_score"),
+    governanceScore,
   };
 }

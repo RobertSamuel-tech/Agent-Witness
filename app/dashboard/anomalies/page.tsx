@@ -40,6 +40,7 @@ const SKELETON_CARD_COUNT = 3;
 interface SearchResult {
   id: string;
   agent_id: string;
+  agentName: string;
   action_type: string;
   input_summary: string;
   output_summary: string;
@@ -113,7 +114,7 @@ function ResultCard({
 
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-foreground">
-              Agent {result.agent_id.slice(0, 8)}
+              {result.agentName || `Agent ${result.agent_id.slice(0, 8)}`}
             </span>
             <Badge variant="outline" className="border-border text-xs text-muted-foreground">
               {result.action_type}
