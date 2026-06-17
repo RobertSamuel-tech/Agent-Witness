@@ -68,24 +68,20 @@
 *SaaS pricing tiers: Starter ($299/mo, 5 agents), Growth ($999/mo, 50 agents + semantic search), Enterprise (custom, unlimited agents + SSO/SAML + compliance reports).*
 
 ### AI Flight Recorder
-<!-- TODO: Replace with actual screenshot -->
 ![AI Flight Recorder](docs/screenshots/ai-flight-recorder.png)
-*Full execution reconstruction with root cause analysis, policy effectiveness, and recommended remediation steps.*
+*Step-by-step execution timeline: request received → agent reasoning → tool invocation → data access (4,247 PII records) → policy evaluation → block. Full forensic reconstruction of every incident.*
 
 ### Semantic Anomaly Detection
-<!-- TODO: Replace with actual screenshot -->
 ![Semantic Search](docs/screenshots/semantic-search.png)
-*Aurora PostgreSQL pgvector-powered semantic search. Find incidents by intent, not keywords. HNSW index for sub-second retrieval.*
+*pgvector HNSW cosine similarity search. Query "agent performed an unusually high cost action" — results ranked by semantic match percentage, not keyword frequency. Powered by Aurora PostgreSQL.*
 
 ### Policy Engine
-<!-- TODO: Replace with actual screenshot -->
 ![Policy Engine](docs/screenshots/policy-engine.png)
-*JSON-configured real-time governance rules. Active policies for cost limits, data masking, domain blocks, and semantic guards.*
+*JSONB governance rules: content threshold, domain block, cost limit, data masking. Active/inactive toggle per policy. Built-in policy simulation to test rules against action summaries before deployment.*
 
 ### Risk Center
-<!-- TODO: Replace with actual screenshot -->
 ![Risk Center](docs/screenshots/risk-center.png)
-*Compliance Command Center with SOC 2, EU AI Act, and ISO 27001 readiness. One-click evidence package generation.*
+*Compliance Command Center: 322 total actions, 55 blocked, 48 flagged, $9.05 total AI spend. Top risk agents ranked by score, policy breakdown by trigger count, and live critical incident feed.*
 
 </details>
 
