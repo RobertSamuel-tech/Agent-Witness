@@ -420,7 +420,7 @@ Each framework section in the PDF is backed by live audit data — action counts
 
 ---
 
-## Why This Wins H0 Track 2
+## Why - H0 Track 2
 
 **1. Billion-dollar emerging category with no clear incumbent.** Datadog, LangSmith, and OpenTelemetry were designed before autonomous AI agents existed. The first purpose-built AI governance platform that can land a Fortune 500 compliance contract owns this category. The EU AI Act enforcement date creates a hard external forcing function for enterprise adoption in 2026.
 
